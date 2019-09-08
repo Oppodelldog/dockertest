@@ -84,7 +84,9 @@ func (dt *DockerTest) waitContainerToFadeAway(containerID string) bool {
 
 func (dt *DockerTest) Cleanup() {
 	shutDownContainers := &sync.WaitGroup{}
-	containers, err := dt.dockerClient.ContainerList(dt.ctx, types.ContainerListOptions{Filters: getFilterArgs()})
+	args := getBasicFilterArgs()
+	args.Add("status", "running")
+	containers, err := dt.dockerClient.ContainerList(dt.ctx, types.ContainerListOptions{All: true, Filters: args})
 	if err == nil {
 		shutDownContainers.Add(len(containers))
 		for _, testContainer := range containers {
@@ -94,6 +96,19 @@ func (dt *DockerTest) Cleanup() {
 		fmt.Printf("error finding test containers: %v\n", err)
 	}
 	shutDownContainers.Wait()
+
+	removeContainers := &sync.WaitGroup{}
+	args = getBasicFilterArgs()
+	args.Add("status", "exited")
+	exitedContainers, err := dt.dockerClient.ContainerList(dt.ctx, types.ContainerListOptions{All: true, Filters: args})
+	if err == nil {
+		removeContainers.Add(len(exitedContainers))
+		for _, testContainer := range exitedContainers {
+			go dt.removeContainer(testContainer.ID, removeContainers)
+		}
+	}
+	removeContainers.Wait()
+
 	dt.CleanupTestNetwork()
 }
 
@@ -108,6 +123,11 @@ func (c *Container) StartContainer() error {
 	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.StartOptions)
 }
 
+func (dt *DockerTest) removeContainer(containerID string, wg *sync.WaitGroup) {
+	_ := dt.dockerClient.ContainerRemove(dt.ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true, RemoveLinks: false, Force: true})
+	wg.Done()
+}
+
 func (dt *DockerTest) shutDownContainer(containerID string, wg *sync.WaitGroup) {
 	stopTimeout := dt.containerStopTimeout
 	_ = dt.dockerClient.ContainerStop(dt.ctx, containerID, &stopTimeout)
@@ -120,14 +140,14 @@ func getLabels() map[string]string {
 	return map[string]string{"docker-dns": "functional-test"}
 }
 
-func getFilterArgs() filters.Args {
+func getBasicFilterArgs() filters.Args {
 	filterArgs := filters.NewArgs()
 	filterArgs.Add("label", "docker-dns=functional-test")
 	return filterArgs
 }
 
 func (dt *DockerTest) CleanupTestNetwork() {
-	res, err := dt.dockerClient.NetworkList(dt.ctx, types.NetworkListOptions{Filters: getFilterArgs()})
+	res, err := dt.dockerClient.NetworkList(dt.ctx, types.NetworkListOptions{Filters: getBasicFilterArgs()})
 	panicOnError(err)
 	for _, networkResource := range res {
 		err := dt.dockerClient.NetworkRemove(dt.ctx, networkResource.ID)
@@ -155,29 +175,45 @@ func (dt *DockerTest) DumpContainerLogs(ctx context.Context, container *Containe
 	fmt.Println(string(log))
 }
 
-func (dt *DockerTest) CreateNetwork(networkName, subNet, ipRange string) {
-	dt.CleanupTestNetwork()
+type Network struct {
+	Name         string
+	Options      types.NetworkCreate
+	dockerClient *client.Client
+	ctx          context.Context
+}
 
-	options := types.NetworkCreate{
-		CheckDuplicate: true,
-		Attachable:     true,
-		Driver:         "bridge",
-		IPAM: &network.IPAM{
-			Driver: "default",
-			Config: []network.IPAMConfig{
-				{
-					Subnet:  subNet,
-					IPRange: ipRange,
-				},
-			},
-		},
-		Labels: getLabels(),
+func (n *Network) Create() (*Net, error) {
+	resp, err := n.dockerClient.NetworkCreate(n.ctx, n.Name, n.Options)
+	if err != nil {
+		return nil, err
 	}
 
-	resp, err := dt.dockerClient.NetworkCreate(dt.ctx, networkName, options)
-	panicOnError(err)
+	return &Net{resp.ID, n.Name}, nil
+}
 
-	dt.network = &Net{resp.ID, networkName}
+func (dt *DockerTest) CreateSimpleNetwork(networkName, subNet, ipRange string) *Network {
+	dt.CleanupTestNetwork()
+
+	return &Network{
+		ctx:          dt.ctx,
+		dockerClient: dt.dockerClient,
+		Name:         networkName,
+		Options: types.NetworkCreate{
+			CheckDuplicate: true,
+			Attachable:     true,
+			Driver:         "bridge",
+			IPAM: &network.IPAM{
+				Driver: "default",
+				Config: []network.IPAMConfig{
+					{
+						Subnet:  subNet,
+						IPRange: ipRange,
+					},
+				},
+			},
+			Labels: getLabels(),
+		},
+	}
 }
 
 func (dt *DockerTest) CreateBaseContainerStructs(cmd string, image string) (*container.Config, *container.HostConfig, *network.NetworkingConfig) {
@@ -189,16 +225,18 @@ func (dt *DockerTest) CreateBaseContainerStructs(cmd string, image string) (*con
 	}
 
 	hostConfig := &container.HostConfig{
-		AutoRemove:  false,
-		NetworkMode: container.NetworkMode(dt.network.NetworkName),
+		AutoRemove: false,
 	}
 
-	networkConfig := &network.NetworkingConfig{
-		EndpointsConfig: map[string]*network.EndpointSettings{
-			dt.network.NetworkName: {
-				NetworkID: dt.network.NetworkID,
-			},
-		},
+	if dt.network != nil {
+		hostConfig.NetworkMode = container.NetworkMode(dt.network.NetworkName)
+	}
+
+	networkConfig := &network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{}}
+	if dt.network != nil {
+		networkConfig.EndpointsConfig[dt.network.NetworkName] = &network.EndpointSettings{
+			NetworkID: dt.network.NetworkID,
+		}
 	}
 
 	return containerConfig, hostConfig, networkConfig
