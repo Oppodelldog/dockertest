@@ -19,6 +19,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
+// New creates a new Test and returns a DockerTest instance to work with.
 func New() (*DockerTest, error) {
 	sessionId := time.Now().Format("20060102150405")
 	dockerClient, err := client.NewEnvClient()
@@ -26,14 +27,14 @@ func New() (*DockerTest, error) {
 		return nil, err
 	}
 	return &DockerTest{
-
+		ctx:                  context.Background(),
 		sessionId:            sessionId,
 		dockerClient:         dockerClient,
-		ctx:                  context.Background(),
 		containerStopTimeout: time.Duration(10),
 	}, nil
 }
 
+//DockerTest is the main object when starting a docker driven container test
 type DockerTest struct {
 	logDir               string
 	sessionId            string
@@ -48,12 +49,18 @@ func panicOnError(err error) {
 		panic(err)
 	}
 }
+
+// SetLogDir sets the directory for log files creating during test execution.
+// When calling it will directly ensure the path.
 func (dt *DockerTest) SetLogDir(logDir string) {
 	err := os.MkdirAll(logDir, 0777)
 	panicOnError(err)
 	dt.logDir = logDir
 }
 
+// WaitForContainerToExit waits for the given container to exit. Therefore it waits about 20 seconds
+// polling the status of the container. If the operation times out, it will try to kill the container.
+// Arfter that it sends a SIGTERM to the currently running process.
 func (dt *DockerTest) WaitForContainerToExit(container *Container) {
 	go func() {
 		if !waitContainerToFadeAway(dt.ctx, dt.dockerClient, container.containerBody.ID) {
@@ -86,6 +93,7 @@ func waitContainerToFadeAway(ctx context.Context, dockerClient *client.Client, c
 	}
 }
 
+// Cleanup removes all resources (like containers/networks) used for the test
 func (dt *DockerTest) Cleanup() {
 	cleaner := newCleaner(dt)
 	cleaner.stopSessionContainers(dt.sessionId)
@@ -100,6 +108,8 @@ func (dt *DockerTest) getLabels() map[string]string {
 	}
 }
 
+// StartContainer starts one or multiple given containers.
+// If some containers return error while starting the last error will be returned.
 func (dt *DockerTest) StartContainer(container ...*Container) error {
 	var err error
 	for _, c := range container {
@@ -112,6 +122,7 @@ func (dt *DockerTest) StartContainer(container ...*Container) error {
 	return err
 }
 
+// DumpInspect dumps an json file with the content of "docker inspect" into the log directory.
 func (dt *DockerTest) DumpInspect(container ...*Container) {
 	for _, c := range container {
 		dt.dumpInspectContainter(c)
@@ -137,6 +148,7 @@ func (dt *DockerTest) dumpInspectContainter(container *Container) {
 	}
 }
 
+// DumpContainerLogs dumps the log of one or multiple containers to the log directory.
 func (dt *DockerTest) DumpContainerLogs(container ...*Container) {
 	for _, c := range container {
 		dt.dumpContainerLog(c)
@@ -164,6 +176,7 @@ func (dt *DockerTest) dumpContainerLog(container *Container) {
 	}
 }
 
+// CreateSimpleNetwork creates a bridged network with the given name, subnet mask and ip range.
 func (dt *DockerTest) CreateSimpleNetwork(networkName, subNet, ipRange string) *NetworkBuilder {
 	cleaner := newCleaner(dt)
 	cleaner.cleanupTestNetwork()
@@ -190,7 +203,7 @@ func (dt *DockerTest) CreateSimpleNetwork(networkName, subNet, ipRange string) *
 	}
 }
 
-func (dt *DockerTest) CreateBaseContainerStructs(cmd string, image string) (*container.Config, *container.HostConfig, *network.NetworkingConfig) {
+func (dt *DockerTest) createBaseContainerStructs(cmd string, image string) (*container.Config, *container.HostConfig, *network.NetworkingConfig) {
 	containerConfig := &container.Config{
 		Env:    []string{},
 		Image:  image,
@@ -207,8 +220,9 @@ func (dt *DockerTest) CreateBaseContainerStructs(cmd string, image string) (*con
 	return containerConfig, hostConfig, networkConfig
 }
 
+// NewContainer creates a new container builder prepared with the given inputs.
 func (dt *DockerTest) NewContainer(containerName, image, cmd string) *ContainerBuilder {
-	containerConfig, hostConfig, networkConfig := dt.CreateBaseContainerStructs(cmd, image)
+	containerConfig, hostConfig, networkConfig := dt.createBaseContainerStructs(cmd, image)
 	return &ContainerBuilder{
 		ContainerConfig:  containerConfig,
 		HostConfig:       hostConfig,

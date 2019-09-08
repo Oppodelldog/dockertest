@@ -3,23 +3,24 @@ package dockertest
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"sync"
 	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
-func newCleaner(dt *DockerTest) Cleaner {
-	return Cleaner{dockerClient: dt.dockerClient, ctx: dt.ctx, containerStopTimeout: time.Second * 10}
+func newCleaner(dt *DockerTest) cleaner {
+	return cleaner{dockerClient: dt.dockerClient, ctx: dt.ctx, containerStopTimeout: time.Second * 10}
 }
 
-type Cleaner struct {
+type cleaner struct {
 	ctx                  context.Context
 	dockerClient         *client.Client
 	containerStopTimeout time.Duration
 }
 
-func (c *Cleaner) cleanupTestNetwork() {
+func (c *cleaner) cleanupTestNetwork() {
 	res, err := c.dockerClient.NetworkList(c.ctx, types.NetworkListOptions{Filters: getBasicFilterArgs()})
 	panicOnError(err)
 	for _, networkResource := range res {
@@ -30,7 +31,7 @@ func (c *Cleaner) cleanupTestNetwork() {
 	}
 }
 
-func (c *Cleaner) removeDockerTestContainers() {
+func (c *cleaner) removeDockerTestContainers() {
 	removeContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
 	args.Add("status", "exited")
@@ -46,7 +47,7 @@ func (c *Cleaner) removeDockerTestContainers() {
 	removeContainers.Wait()
 }
 
-func (c *Cleaner) stopSessionContainers(sessionId string) {
+func (c *cleaner) stopSessionContainers(sessionId string) {
 	shutDownContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
 	args.Add("label", fmt.Sprintf("docker-dns-session=%s", sessionId))
@@ -63,12 +64,12 @@ func (c *Cleaner) stopSessionContainers(sessionId string) {
 	shutDownContainers.Wait()
 }
 
-func (c *Cleaner) removeContainer(containerID string, wg *sync.WaitGroup) {
+func (c *cleaner) removeContainer(containerID string, wg *sync.WaitGroup) {
 	_ = c.dockerClient.ContainerRemove(c.ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true, RemoveLinks: false, Force: true})
 	wg.Done()
 }
 
-func (c *Cleaner) shutDownContainer(containerID string, wg *sync.WaitGroup) {
+func (c *cleaner) shutDownContainer(containerID string, wg *sync.WaitGroup) {
 	stopTimeout := c.containerStopTimeout
 	_ = c.dockerClient.ContainerStop(c.ctx, containerID, &stopTimeout)
 
