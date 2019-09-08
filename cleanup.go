@@ -49,7 +49,7 @@ func (c *Cleaner) removeDockerTestContainers() {
 func (c *Cleaner) stopSessionContainers(sessionId string) {
 	shutDownContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
-	args.Add("docker-dns-session", fmt.Sprintf("%s", sessionId))
+	args.Add("label", fmt.Sprintf("docker-dns-session=%s", sessionId))
 	args.Add("status", "running")
 	containers, err := c.dockerClient.ContainerList(c.ctx, types.ContainerListOptions{All: true, Filters: args})
 	if err == nil {
@@ -61,7 +61,6 @@ func (c *Cleaner) stopSessionContainers(sessionId string) {
 		fmt.Printf("error finding session containers: %v\n", err)
 	}
 	shutDownContainers.Wait()
-
 }
 
 func (c *Cleaner) removeContainer(containerID string, wg *sync.WaitGroup) {
