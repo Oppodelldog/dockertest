@@ -37,7 +37,7 @@ func main() {
 		SetWorkingDir(containerWd).
 		Mount(projectDir, "/app").
 		SetEnv("API_BASE_URL", "http://localhost:8080").
-		SetHealthCmd("go run healthcheck/main.go").
+		SetHealthShellCmd("go run healthcheck/main.go").
 		CreateContainer()
 	panicOnErr(err)
 

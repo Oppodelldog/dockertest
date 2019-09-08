@@ -135,10 +135,10 @@ func (b *ContainerBuilder) SetIPAddress(ipAddress string, n *Net) *ContainerBuil
 	return b
 }
 
-func (b *ContainerBuilder) SetHealthCmd(cmd string) *ContainerBuilder {
+func (b *ContainerBuilder) SetHealthShellCmd(cmd string) *ContainerBuilder {
 	b.ContainerConfig.Healthcheck = &container.HealthConfig{
 		Test:     []string{"CMD-SHELL", cmd},
-		Interval: 500 * time.Millisecond,
+		Interval: 200 * time.Millisecond,
 		Retries:  20,
 	}
 	return b
