@@ -2,11 +2,13 @@ package dockertest
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io/ioutil"
 	"math/rand"
+	"os"
+	"path"
 	"strings"
-	"sync"
 	"syscall"
 	"time"
 
@@ -25,6 +27,7 @@ func New() (*DockerTest, error) {
 		return nil, err
 	}
 	return &DockerTest{
+
 		sessionId:            sessionId,
 		dockerClient:         dockerClient,
 		ctx:                  context.Background(),
@@ -32,17 +35,12 @@ func New() (*DockerTest, error) {
 	}, nil
 }
 
-type Net struct {
-	NetworkID   string
-	NetworkName string
-}
-
 type DockerTest struct {
+	logDir               string
 	sessionId            int
 	dockerClient         *client.Client
 	ctx                  context.Context
 	containerDir         string
-	network              *Net
 	containerStopTimeout time.Duration
 }
 
@@ -51,150 +49,128 @@ func panicOnError(err error) {
 		panic(err)
 	}
 }
+func (dt *DockerTest) SetLogDir(logDir string) {
+	err := os.MkdirAll(logDir, 0777)
+	panicOnError(err)
+	dt.logDir = logDir
+}
 
 func (dt *DockerTest) WaitForContainerToExit(container *Container) {
 	go func() {
-		if !dt.waitContainerToFadeAway(container.containerBody.ID) {
+		if !waitContainerToFadeAway(dt.ctx, dt.dockerClient, container.containerBody.ID) {
 			err := dt.dockerClient.ContainerKill(context.Background(), container.containerBody.ID, "kill")
 			if err != nil {
 				fmt.Println("Error while killing container,", err)
 			}
-			_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
 		}
+		_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
+
 	}()
 }
 
-func (dt *DockerTest) waitContainerToFadeAway(containerID string) bool {
+func waitContainerToFadeAway(ctx context.Context, dockerClient *client.Client, containerID string) bool {
 	var i = 0
 	for {
 		i++
-		_, err := dt.dockerClient.ContainerInspect(dt.ctx, containerID)
+		insp, err := dockerClient.ContainerInspect(ctx, containerID)
 
-		if client.IsErrNotFound(err) {
+		insp = insp
+		if client.IsErrNotFound(err) || !insp.State.Running {
 			return true
 		}
 
 		time.Sleep(1 * time.Second)
 		if i == 20 {
-			fmt.Println("waiting for tests to finish timed out")
+			fmt.Println("waiting for tests to finish timed out ", containerID)
 			return false
 		}
 	}
 }
 
 func (dt *DockerTest) Cleanup() {
-	shutDownContainers := &sync.WaitGroup{}
-	args := getBasicFilterArgs()
-	args.Add("status", "running")
-	containers, err := dt.dockerClient.ContainerList(dt.ctx, types.ContainerListOptions{All: true, Filters: args})
-	if err == nil {
-		shutDownContainers.Add(len(containers))
-		for _, testContainer := range containers {
-			go dt.shutDownContainer(testContainer.ID, shutDownContainers)
-		}
-	} else {
-		fmt.Printf("error finding test containers: %v\n", err)
-	}
-	shutDownContainers.Wait()
-
-	removeContainers := &sync.WaitGroup{}
-	args = getBasicFilterArgs()
-	args.Add("status", "exited")
-	exitedContainers, err := dt.dockerClient.ContainerList(dt.ctx, types.ContainerListOptions{All: true, Filters: args})
-	if err == nil {
-		removeContainers.Add(len(exitedContainers))
-		for _, testContainer := range exitedContainers {
-			go dt.removeContainer(testContainer.ID, removeContainers)
-		}
-	}
-	removeContainers.Wait()
-
-	dt.CleanupTestNetwork()
+	cleaner := newCleaner(dt)
+	cleaner.stopSessionContainers(dt.sessionId)
+	cleaner.removeDockerTestContainers()
+	cleaner.cleanupTestNetwork()
 }
 
-type Container struct {
-	containerBody container.ContainerCreateCreatedBody
-	StartOptions  types.ContainerStartOptions
-	ctx           context.Context
-	dockerClient  *client.Client
-}
-
-func (c *Container) StartContainer() error {
-	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.StartOptions)
-}
-
-func (dt *DockerTest) removeContainer(containerID string, wg *sync.WaitGroup) {
-	_ := dt.dockerClient.ContainerRemove(dt.ctx, containerID, types.ContainerRemoveOptions{RemoveVolumes: true, RemoveLinks: false, Force: true})
-	wg.Done()
-}
-
-func (dt *DockerTest) shutDownContainer(containerID string, wg *sync.WaitGroup) {
-	stopTimeout := dt.containerStopTimeout
-	_ = dt.dockerClient.ContainerStop(dt.ctx, containerID, &stopTimeout)
-
-	dt.waitContainerToFadeAway(containerID)
-	wg.Done()
-}
-
-func getLabels() map[string]string {
-	return map[string]string{"docker-dns": "functional-test"}
-}
-
-func getBasicFilterArgs() filters.Args {
-	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", "docker-dns=functional-test")
-	return filterArgs
-}
-
-func (dt *DockerTest) CleanupTestNetwork() {
-	res, err := dt.dockerClient.NetworkList(dt.ctx, types.NetworkListOptions{Filters: getBasicFilterArgs()})
-	panicOnError(err)
-	for _, networkResource := range res {
-		err := dt.dockerClient.NetworkRemove(dt.ctx, networkResource.ID)
-		if err != nil {
-			fmt.Printf("could not remove network: %v\n", err)
-		}
+func (dt *DockerTest) getLabels() map[string]string {
+	return map[string]string{
+		"docker-dns":         "functional-test",
+		"docker-dns-session": fmt.Sprintf("%v", dt.sessionId),
 	}
 }
 
-func (dt *DockerTest) DumpContainerLogs(ctx context.Context, container *Container) {
+func (dt *DockerTest) StartContainer(container ...*Container) error {
+	var err error
+	for _, c := range container {
+		errStart := c.StartContainer()
+		if errStart != nil {
+			err = errStart
+		}
+	}
+
+	return err
+}
+
+func (dt *DockerTest) DumpInspect(container ...*Container) {
+	for _, c := range container {
+		dt.dumpInspectContainter(c)
+	}
+}
+
+func (dt *DockerTest) dumpInspectContainter(container *Container) {
+	inspectJson, err := dt.dockerClient.ContainerInspect(dt.ctx, container.containerBody.ID)
+	if err != nil {
+		panicOnError(err)
+	}
+	b, err := json.Marshal(inspectJson)
+	if err != nil {
+		fmt.Printf("error serializing inspect json for container '%s': %v\n", container.Name, err)
+		return
+	}
+	fileName := fmt.Sprintf("%s.json", container.Name)
+	logFilename := dt.getLogFilename(fileName)
+	err = ioutil.WriteFile(logFilename, b, 0655)
+	if err != nil {
+		fmt.Printf("error writing inspect result to file '%s': %v\n", logFilename, err)
+		return
+	}
+}
+
+func (dt *DockerTest) DumpContainerLogs(container ...*Container) {
+	for _, c := range container {
+		dt.dumpContainerLog(c)
+	}
+}
+
+func (dt *DockerTest) dumpContainerLog(container *Container) {
 	containerId := container.containerBody.ID
 	fmt.Printf("Container log: %s\n", containerId)
-	logReader, err := dt.dockerClient.ContainerLogs(ctx, containerId, types.ContainerLogsOptions{ShowStderr: true, ShowStdout: true})
+	logReader, err := dt.dockerClient.ContainerLogs(dt.ctx, containerId, types.ContainerLogsOptions{ShowStderr: true, ShowStdout: true})
 	if err != nil {
 		fmt.Printf("error reading container log for '%s': %v\n", containerId, err)
 		return
 	}
-
 	log, err := ioutil.ReadAll(logReader)
 	if err != nil {
 		fmt.Printf("error reading container log stream for '%s': %v\n", containerId, err)
 		return
 	}
-
-	fmt.Println(string(log))
-}
-
-type Network struct {
-	Name         string
-	Options      types.NetworkCreate
-	dockerClient *client.Client
-	ctx          context.Context
-}
-
-func (n *Network) Create() (*Net, error) {
-	resp, err := n.dockerClient.NetworkCreate(n.ctx, n.Name, n.Options)
+	fileName := fmt.Sprintf("%s.txt", container.Name)
+	logFilename := dt.getLogFilename(fileName)
+	err = ioutil.WriteFile(logFilename, log, 0655)
 	if err != nil {
-		return nil, err
+		fmt.Printf("error writing container log to file '%s': %v\n", logFilename, err)
+		return
 	}
-
-	return &Net{resp.ID, n.Name}, nil
 }
 
-func (dt *DockerTest) CreateSimpleNetwork(networkName, subNet, ipRange string) *Network {
-	dt.CleanupTestNetwork()
+func (dt *DockerTest) CreateSimpleNetwork(networkName, subNet, ipRange string) *NetworkBuilder {
+	cleaner := newCleaner(dt)
+	cleaner.cleanupTestNetwork()
 
-	return &Network{
+	return &NetworkBuilder{
 		ctx:          dt.ctx,
 		dockerClient: dt.dockerClient,
 		Name:         networkName,
@@ -211,7 +187,7 @@ func (dt *DockerTest) CreateSimpleNetwork(networkName, subNet, ipRange string) *
 					},
 				},
 			},
-			Labels: getLabels(),
+			Labels: dt.getLabels(),
 		},
 	}
 }
@@ -221,47 +197,16 @@ func (dt *DockerTest) CreateBaseContainerStructs(cmd string, image string) (*con
 		Env:    []string{},
 		Image:  image,
 		Cmd:    strslice.StrSlice(strings.Split(cmd, " ")),
-		Labels: getLabels(),
+		Labels: dt.getLabels(),
 	}
 
 	hostConfig := &container.HostConfig{
 		AutoRemove: false,
 	}
 
-	if dt.network != nil {
-		hostConfig.NetworkMode = container.NetworkMode(dt.network.NetworkName)
-	}
-
-	networkConfig := &network.NetworkingConfig{EndpointsConfig: map[string]*network.EndpointSettings{}}
-	if dt.network != nil {
-		networkConfig.EndpointsConfig[dt.network.NetworkName] = &network.EndpointSettings{
-			NetworkID: dt.network.NetworkID,
-		}
-	}
+	networkConfig := &network.NetworkingConfig{}
 
 	return containerConfig, hostConfig, networkConfig
-}
-
-type ContainerBuilder struct {
-	ContainerConfig  *container.Config
-	HostConfig       *container.HostConfig
-	NetworkingConfig *network.NetworkingConfig
-	dockerClient     *client.Client
-	ContainerName    string
-	ctx              context.Context
-}
-
-func (b *ContainerBuilder) CreateContainer() (*Container, error) {
-	containerBody, err := b.dockerClient.ContainerCreate(b.ctx, b.ContainerConfig, b.HostConfig, b.NetworkingConfig, b.ContainerName)
-	if err != nil {
-		return nil, err
-	}
-	return &Container{
-		containerBody: containerBody,
-		ctx:           b.ctx,
-		dockerClient:  b.dockerClient,
-	}, nil
-
 }
 
 func (dt *DockerTest) NewContainer(containerName, image, cmd string) *ContainerBuilder {
@@ -271,7 +216,18 @@ func (dt *DockerTest) NewContainer(containerName, image, cmd string) *ContainerB
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkConfig,
 		ContainerName:    fmt.Sprintf("%v-%v", containerName, dt.sessionId),
+		originalName:     containerName,
 		ctx:              dt.ctx,
 		dockerClient:     dt.dockerClient,
 	}
+}
+
+func (dt *DockerTest) getLogFilename(filename string) string {
+	return path.Join(dt.logDir, filename)
+}
+
+func getBasicFilterArgs() filters.Args {
+	filterArgs := filters.NewArgs()
+	filterArgs.Add("label", "docker-dns=functional-test")
+	return filterArgs
 }
