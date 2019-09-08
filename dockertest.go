@@ -20,7 +20,7 @@ import (
 
 func New() (*DockerTest, error) {
 	sessionId := rand.New(rand.NewSource(int64(time.Now().Nanosecond()))).Int()
-	dockerClient, err := client.NewClientWithOpts(client.FromEnv)
+	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
 	}
