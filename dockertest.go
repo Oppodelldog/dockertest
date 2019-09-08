@@ -3,12 +3,12 @@ package dockertest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io/ioutil"
 	"os"
 	"path"
 	"strings"
-	"syscall"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -60,20 +60,57 @@ func (dt *DockerTest) SetLogDir(logDir string) {
 
 // WaitForContainerToExit waits for the given container to exit. Therefore it waits about 20 seconds
 // polling the status of the container. If the operation times out, it will try to kill the container.
-// Arfter that it sends a SIGTERM to the currently running process.
-func (dt *DockerTest) WaitForContainerToExit(container *Container) {
+func (dt *DockerTest) WaitForContainerToExit(container *Container, timeout time.Duration) chan bool {
+	doneCh := make(chan bool)
 	go func() {
-		if !waitContainerToFadeAway(dt.ctx, dt.dockerClient, container.containerBody.ID) {
+		ctxTimeout, _ := context.WithTimeout(dt.ctx, timeout)
+		if !waitContainerToFadeAway(ctxTimeout, dt.dockerClient, container.containerBody.ID) {
 			err := dt.dockerClient.ContainerKill(context.Background(), container.containerBody.ID, "kill")
 			if err != nil {
 				fmt.Println("Error while killing container,", err)
 			}
 		}
-		_ = syscall.Kill(syscall.Getpid(), syscall.SIGTERM)
-
+		doneCh <- true
 	}()
+
+	return doneCh
 }
 
+// WaitForContainerToBeHealthy blocks until the given container reaches healthy state or timeout occurrs.
+func (dt *DockerTest) WaitForContainerToBeHealthy(container *Container, timeout time.Duration) chan error {
+	healthErr := make(chan error)
+	go func() {
+		ctxTimeout, _ := context.WithTimeout(dt.ctx, timeout)
+		if !waitContainerToBeHealthy(ctxTimeout, dt.dockerClient, container.containerBody.ID) {
+			healthErr <- errors.New("timeout - container is not healthy")
+		}
+		healthErr <- nil
+	}()
+
+	return healthErr
+}
+func waitContainerToBeHealthy(ctx context.Context, dockerClient *client.Client, containerID string) bool {
+	var i = 0
+	for {
+		i++
+		insp, err := dockerClient.ContainerInspect(ctx, containerID)
+		if err != nil {
+			time.Sleep(1 * time.Second)
+			continue
+		}
+
+		insp = insp
+		if insp.State.Health.Status == "healthy" {
+			return true
+		}
+
+		time.Sleep(1 * time.Second)
+		if i == 20 {
+			fmt.Println("waiting for tests to be healthy timed out ", containerID)
+			return false
+		}
+	}
+}
 func waitContainerToFadeAway(ctx context.Context, dockerClient *client.Client, containerID string) bool {
 	var i = 0
 	for {
@@ -173,6 +210,28 @@ func (dt *DockerTest) dumpContainerLog(container *Container) {
 	if err != nil {
 		fmt.Printf("error writing container log to file '%s': %v\n", logFilename, err)
 		return
+	}
+}
+
+// CreateSimpleNetwork creates a bridged network with the given name, subnet mask and ip range.
+func (dt *DockerTest) CreateBasicNetwork(networkName string) *NetworkBuilder {
+	cleaner := newCleaner(dt)
+	cleaner.cleanupTestNetwork()
+
+	return &NetworkBuilder{
+		ctx:          dt.ctx,
+		dockerClient: dt.dockerClient,
+		Name:         networkName,
+		Options: types.NetworkCreate{
+			CheckDuplicate: true,
+			Attachable:     true,
+			Driver:         "bridge",
+			IPAM: &network.IPAM{
+				Driver: "default",
+				Config: []network.IPAMConfig{},
+			},
+			Labels: dt.getLabels(),
+		},
 	}
 }
 

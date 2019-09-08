@@ -2,7 +2,9 @@ package dockertest
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
@@ -24,6 +26,19 @@ func (c *Container) StartContainer() error {
 	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.StartOptions)
 }
 
+func (c *Container) GetExitCode() (int, error) {
+	insp, err := c.dockerClient.ContainerInspect(c.ctx, c.containerBody.ID)
+	if err != nil {
+		return -1, err
+	}
+
+	if insp.State.Running {
+		return -1, errors.New("container is running, it has no exit code yet")
+	}
+
+	return insp.State.ExitCode, nil
+}
+
 // ContainerBuilder helps to create customized containers
 type ContainerBuilder struct {
 	ContainerConfig  *container.Config
@@ -37,6 +52,7 @@ type ContainerBuilder struct {
 
 // CreateContainer creates a container from the current builders state.
 func (b *ContainerBuilder) CreateContainer() (*Container, error) {
+
 	containerBody, err := b.dockerClient.ContainerCreate(b.ctx, b.ContainerConfig, b.HostConfig, b.NetworkingConfig, b.ContainerName)
 	if err != nil {
 		return nil, err
@@ -116,5 +132,14 @@ func (b *ContainerBuilder) SetIPAddress(ipAddress string, n *Net) *ContainerBuil
 		b.NetworkingConfig.EndpointsConfig[n.NetworkName].IPAMConfig = &network.EndpointIPAMConfig{IPv4Address: ipAddress}
 	}
 
+	return b
+}
+
+func (b *ContainerBuilder) SetHealthCmd(cmd string) *ContainerBuilder {
+	b.ContainerConfig.Healthcheck = &container.HealthConfig{
+		Test:     []string{"CMD-SHELL", cmd},
+		Interval: 500 * time.Millisecond,
+		Retries:  20,
+	}
 	return b
 }
