@@ -46,10 +46,10 @@ func (c *Cleaner) removeDockerTestContainers() {
 	removeContainers.Wait()
 }
 
-func (c *Cleaner) stopSessionContainers(sessionId int) {
+func (c *Cleaner) stopSessionContainers(sessionId string) {
 	shutDownContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
-	args.Add("docker-dns-session", fmt.Sprintf("%v", sessionId))
+	args.Add("docker-dns-session", fmt.Sprintf("%s", sessionId))
 	args.Add("status", "running")
 	containers, err := c.dockerClient.ContainerList(c.ctx, types.ContainerListOptions{All: true, Filters: args})
 	if err == nil {

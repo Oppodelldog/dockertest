@@ -5,7 +5,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/ioutil"
-	"math/rand"
 	"os"
 	"path"
 	"strings"
@@ -21,7 +20,7 @@ import (
 )
 
 func New() (*DockerTest, error) {
-	sessionId := rand.New(rand.NewSource(int64(time.Now().Nanosecond()))).Int()
+	sessionId := time.Now().Format("20060102150405")
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {
 		return nil, err
@@ -37,7 +36,7 @@ func New() (*DockerTest, error) {
 
 type DockerTest struct {
 	logDir               string
-	sessionId            int
+	sessionId            string
 	dockerClient         *client.Client
 	ctx                  context.Context
 	containerDir         string
@@ -97,7 +96,7 @@ func (dt *DockerTest) Cleanup() {
 func (dt *DockerTest) getLabels() map[string]string {
 	return map[string]string{
 		"docker-dns":         "functional-test",
-		"docker-dns-session": fmt.Sprintf("%v", dt.sessionId),
+		"docker-dns-session": fmt.Sprintf("%s", dt.sessionId),
 	}
 }
 
@@ -146,7 +145,6 @@ func (dt *DockerTest) DumpContainerLogs(container ...*Container) {
 
 func (dt *DockerTest) dumpContainerLog(container *Container) {
 	containerId := container.containerBody.ID
-	fmt.Printf("Container log: %s\n", containerId)
 	logReader, err := dt.dockerClient.ContainerLogs(dt.ctx, containerId, types.ContainerLogsOptions{ShowStderr: true, ShowStdout: true})
 	if err != nil {
 		fmt.Printf("error reading container log for '%s': %v\n", containerId, err)
@@ -215,7 +213,7 @@ func (dt *DockerTest) NewContainer(containerName, image, cmd string) *ContainerB
 		ContainerConfig:  containerConfig,
 		HostConfig:       hostConfig,
 		NetworkingConfig: networkConfig,
-		ContainerName:    fmt.Sprintf("%v-%v", containerName, dt.sessionId),
+		ContainerName:    fmt.Sprintf("%s-%s", containerName, dt.sessionId),
 		originalName:     containerName,
 		ctx:              dt.ctx,
 		dockerClient:     dt.dockerClient,

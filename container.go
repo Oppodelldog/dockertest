@@ -45,19 +45,10 @@ func (b *ContainerBuilder) CreateContainer() (*Container, error) {
 }
 
 func (b *ContainerBuilder) ConnectToNetwork(n *Net) *ContainerBuilder {
-
 	b.HostConfig.NetworkMode = container.NetworkMode(n.NetworkName)
-	if b.NetworkingConfig.EndpointsConfig == nil {
-		b.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
-	}
-	endpointSetting := &network.EndpointSettings{
-		NetworkID: n.NetworkID,
-	}
-	if b.NetworkingConfig.EndpointsConfig[n.NetworkName] == nil {
-		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = endpointSetting
-	} else {
-		b.NetworkingConfig.EndpointsConfig[n.NetworkName].NetworkID = n.NetworkID
-	}
+	b.ensureNetworkConfig(n)
+	b.NetworkingConfig.EndpointsConfig[n.NetworkName].NetworkID = n.NetworkID
+
 	return b
 }
 
@@ -84,6 +75,22 @@ func (b *ContainerBuilder) AddDns(dnsServerIP string) *ContainerBuilder {
 func (b *ContainerBuilder) UseOriginalName() *ContainerBuilder {
 	b.ContainerName = b.originalName
 	return b
+}
+
+func (b *ContainerBuilder) Link(container *Container, alias string, n *Net) *ContainerBuilder {
+	b.ensureNetworkConfig(n)
+	links := b.NetworkingConfig.EndpointsConfig[n.NetworkName].Links
+	b.NetworkingConfig.EndpointsConfig[n.NetworkName].Links = append(links, fmt.Sprintf("%s:%s", container.Name, alias))
+	return b
+}
+
+func (b *ContainerBuilder) ensureNetworkConfig(n *Net) {
+	if b.NetworkingConfig.EndpointsConfig == nil {
+		b.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+	}
+	if b.NetworkingConfig.EndpointsConfig[n.NetworkName] == nil {
+		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = &network.EndpointSettings{}
+	}
 }
 
 func (b *ContainerBuilder) SetIPAddress(ipAddress string, n *Net) *ContainerBuilder {
