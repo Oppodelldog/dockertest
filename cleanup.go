@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-func newCleaner(dt *DockerTest) cleaner {
+func newCleaner(dt *Session) cleaner {
 	return cleaner{dockerClient: dt.dockerClient, ctx: dt.ctx, containerStopTimeout: time.Second * 10}
 }
 
@@ -73,6 +73,6 @@ func (c *cleaner) shutDownContainer(containerID string, wg *sync.WaitGroup) {
 	stopTimeout := c.containerStopTimeout
 	_ = c.dockerClient.ContainerStop(c.ctx, containerID, &stopTimeout)
 
-	waitContainerToFadeAway(c.ctx, c.dockerClient, containerID)
+	waitForContainer(containerHasFadeAway, c.ctx, c.dockerClient, containerID)
 	wg.Done()
 }

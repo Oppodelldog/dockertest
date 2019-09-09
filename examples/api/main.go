@@ -79,7 +79,7 @@ func main() {
 }
 
 // it is always a good practise to use defer.
-func cleanup(test *dockertest.DockerTest, testResult *TestResult) {
+func cleanup(test *dockertest.Session, testResult *TestResult) {
 	test.Cleanup()
 	if r := recover(); r != nil {
 		fmt.Println("ERROR: %v", string(debug.Stack()))
