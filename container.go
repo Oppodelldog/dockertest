@@ -1,7 +1,6 @@
 package dockertest
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"strings"
@@ -10,22 +9,20 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/client"
 	"github.com/mohae/deepcopy"
 )
 
 // Container is a access wrapper for a docker container
 type Container struct {
 	Name          string
+	startOptions  types.ContainerStartOptions
 	containerBody container.ContainerCreateCreatedBody
-	StartOptions  types.ContainerStartOptions
-	ctx           context.Context
-	dockerClient  *client.Client
+	ClientEnabled
 }
 
 // Start starts the container.
 func (c *Container) Start() error {
-	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.StartOptions)
+	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.startOptions)
 }
 
 // ExitCode returns the exit code of the container.
@@ -50,11 +47,10 @@ type ContainerBuilder struct {
 	ContainerConfig  *container.Config
 	HostConfig       *container.HostConfig
 	NetworkingConfig *network.NetworkingConfig
-	dockerClient     *client.Client
 	ContainerName    string
 	originalName     string
-	ctx              context.Context
 	sessionId        string
+	ClientEnabled
 }
 
 func (b *ContainerBuilder) NewContainerBuilder() *ContainerBuilder {
@@ -77,8 +73,7 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 	return &Container{
 		Name:          b.ContainerName,
 		containerBody: containerBody,
-		ctx:           b.ctx,
-		dockerClient:  b.dockerClient,
+		ClientEnabled: b.ClientEnabled,
 	}, nil
 }
 
@@ -106,7 +101,10 @@ func (b *ContainerBuilder) Cmd(cmd string) *ContainerBuilder {
 //Name defines the container name.
 func (b *ContainerBuilder) Name(s string) *ContainerBuilder {
 	b.originalName = s
-	b.ContainerName = fmt.Sprintf("%s-%s", s, b.sessionId)
+	b.ContainerName = s
+	if b.sessionId != "" {
+		b.ContainerName = fmt.Sprintf("%s-%s", s, b.sessionId)
+	}
 	return b
 }
 

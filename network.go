@@ -1,10 +1,7 @@
 package dockertest
 
 import (
-	"context"
-
 	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 )
 
 type Network struct {
@@ -13,10 +10,9 @@ type Network struct {
 }
 
 type NetworkBuilder struct {
-	Name         string
-	Options      types.NetworkCreate
-	dockerClient *client.Client
-	ctx          context.Context
+	Name    string
+	Options types.NetworkCreate
+	ClientEnabled
 }
 
 func (n *NetworkBuilder) Create() (*Network, error) {

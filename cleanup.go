@@ -10,8 +10,9 @@ import (
 	"github.com/docker/docker/client"
 )
 
-func newCleaner(dt *Session) cleaner {
-	return cleaner{dockerClient: dt.dockerClient, ctx: dt.ctx, containerStopTimeout: time.Second * 10}
+func newCleaner(dt *Session, timeout time.Duration) cleaner {
+	ctx, _ := context.WithTimeout(context.Background(), timeout)
+	return cleaner{dockerClient: dt.dockerClient, ctx: ctx, containerStopTimeout: time.Second * 10}
 }
 
 type cleaner struct {
@@ -31,10 +32,10 @@ func (c *cleaner) cleanupTestNetwork() {
 	}
 }
 
-func (c *cleaner) removeDockerTestContainers() {
+func (c *cleaner) removeDockerTestContainers(sessionId string) {
 	removeContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
-	args.Add("status", "exited")
+	args.Add("label", fmt.Sprintf("docker-dns-session=%s", sessionId))
 	exitedContainers, err := c.dockerClient.ContainerList(c.ctx, types.ContainerListOptions{All: true, Filters: args})
 	if err == nil {
 		removeContainers.Add(len(exitedContainers))

@@ -3,7 +3,9 @@ package main
 import (
 	"fmt"
 	"os"
+	"os/signal"
 	"runtime/debug"
+	"syscall"
 	"time"
 
 	"github.com/Oppodelldog/dockertest"
@@ -20,6 +22,8 @@ func main() {
 	// start a new test
 	test, err := dockertest.NewSession()
 	panicOnErr(err)
+
+	go listenForSigTerm(test)
 
 	// initialize testResult which is passed into deferred cleanup method
 	var testResult = &TestResult{ExitCode: -1}
@@ -79,9 +83,18 @@ func main() {
 	test.DumpContainerLogs(tests)
 }
 
+func listenForSigTerm(session *dockertest.Session) {
+	sigs := make(chan os.Signal, 1)
+	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
+	<-sigs
+	session.Cancel()
+}
+
 // it is always a good practise to use defer.
 func cleanup(test *dockertest.Session, testResult *TestResult) {
+	fmt.Println("CLEANUP-START")
 	test.Cleanup()
+	fmt.Println("CLEANUP-DONE")
 	if r := recover(); r != nil {
 		fmt.Printf("ERROR: %v\n", string(debug.Stack()))
 	}
@@ -94,6 +107,7 @@ type TestResult struct {
 
 func panicOnErr(err error) {
 	if err != nil {
+		fmt.Println(err)
 		panic(err)
 	}
 }
