@@ -1,13 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"github.com/Oppodelldog/dockertest"
 	"os"
+	"runtime/debug"
 	"time"
 )
 
-const image = "golang:1.13.0"
-const containerWd = "/app/examples/api"
 const waitingTimeout = time.Minute
 
 // functional tests for name api
@@ -31,28 +31,32 @@ func main() {
 	net, err := test.CreateBasicNetwork("test-network").Create()
 	panicOnErr(err)
 
+	basicConfiguration := test.NewContainerBuilder().
+		Image("golang:1.13.0").
+		Connect(net).
+		WorkingDir("/app/examples/api").
+		Mount(projectDir, "/app")
+
 	// create the API container, the micro-service under test
-	api, err := test.NewContainer("api", image, "go run nameapi/main.go").
-		ConnectToNetwork(net).
-		SetWorkingDir(containerWd).
-		Mount(projectDir, "/app").
-		SetEnv("API_BASE_URL", "http://localhost:8080").
-		SetHealthShellCmd("go run healthcheck/main.go").
-		CreateContainer()
+	api, err := basicConfiguration.NewContainerBuilder().
+		Name("api").
+		Cmd("go run nameapi/main.go").
+		Env("API_BASE_URL", "http://localhost:8080").
+		HealthShellCmd("go run healthcheck/main.go").
+		Build()
 	panicOnErr(err)
 
 	// create the testing container
-	tests, err := test.NewContainer("tests", image, "go test -v examples/api/tests/api_test.go").
-		ConnectToNetwork(net).
-		SetWorkingDir("/app").
-		Mount(projectDir, "/app").
+	tests, err := basicConfiguration.NewContainerBuilder().
+		Name("tests").
+		Cmd("go test -v tests/api_test.go").
 		Link(api, "api", net).
-		SetEnv("API_BASE_URL", "http://api:8080").
-		CreateContainer()
+		Env("API_BASE_URL", "http://api:8080").
+		Build()
 	panicOnErr(err)
 
 	// start api containers
-	err = api.StartContainer()
+	err = api.Start()
 	panicOnErr(err)
 
 	// wait until API is available
@@ -60,14 +64,14 @@ func main() {
 	panicOnErr(err)
 
 	// now start the tests
-	err = tests.StartContainer()
+	err = tests.Start()
 	panicOnErr(err)
 
 	// wait for tests to finish
 	<-test.WaitForContainerToExit(tests, waitingTimeout)
 
 	// grab the exit code from the exited container
-	testResult.ExitCode, err = tests.GetExitCode()
+	testResult.ExitCode, err = tests.ExitCode()
 	panicOnErr(err)
 
 	// dump the test output to the log directory
@@ -77,6 +81,9 @@ func main() {
 // it is always a good practise to use defer.
 func cleanup(test *dockertest.DockerTest, testResult *TestResult) {
 	test.Cleanup()
+	if r := recover(); r != nil {
+		fmt.Println("ERROR: %v", string(debug.Stack()))
+	}
 	os.Exit(testResult.ExitCode)
 }
 

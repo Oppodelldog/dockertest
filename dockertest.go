@@ -8,14 +8,12 @@ import (
 	"io/ioutil"
 	"os"
 	"path"
-	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/network"
-	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
 )
 
@@ -89,46 +87,6 @@ func (dt *DockerTest) WaitForContainerToBeHealthy(container *Container, timeout 
 
 	return healthErr
 }
-func waitContainerToBeHealthy(ctx context.Context, dockerClient *client.Client, containerID string) bool {
-	var i = 0
-	for {
-		i++
-		insp, err := dockerClient.ContainerInspect(ctx, containerID)
-		if err != nil {
-			time.Sleep(1 * time.Second)
-			continue
-		}
-
-		insp = insp
-		if insp.State.Health.Status == "healthy" {
-			return true
-		}
-
-		time.Sleep(1 * time.Second)
-		if i == 20 {
-			fmt.Println("waiting for tests to be healthy timed out ", containerID)
-			return false
-		}
-	}
-}
-func waitContainerToFadeAway(ctx context.Context, dockerClient *client.Client, containerID string) bool {
-	var i = 0
-	for {
-		i++
-		insp, err := dockerClient.ContainerInspect(ctx, containerID)
-
-		insp = insp
-		if client.IsErrNotFound(err) || !insp.State.Running {
-			return true
-		}
-
-		time.Sleep(1 * time.Second)
-		if i == 20 {
-			fmt.Println("waiting for tests to finish timed out ", containerID)
-			return false
-		}
-	}
-}
 
 // Cleanup removes all resources (like containers/networks) used for the test
 func (dt *DockerTest) Cleanup() {
@@ -145,12 +103,12 @@ func (dt *DockerTest) getLabels() map[string]string {
 	}
 }
 
-// StartContainer starts one or multiple given containers.
+// Start starts one or multiple given containers.
 // If some containers return error while starting the last error will be returned.
 func (dt *DockerTest) StartContainer(container ...*Container) error {
 	var err error
 	for _, c := range container {
-		errStart := c.StartContainer()
+		errStart := c.Start()
 		if errStart != nil {
 			err = errStart
 		}
@@ -262,34 +220,16 @@ func (dt *DockerTest) CreateSimpleNetwork(networkName, subNet, ipRange string) *
 	}
 }
 
-func (dt *DockerTest) createBaseContainerStructs(cmd string, image string) (*container.Config, *container.HostConfig, *network.NetworkingConfig) {
-	containerConfig := &container.Config{
-		Env:    []string{},
-		Image:  image,
-		Cmd:    strslice.StrSlice(strings.Split(cmd, " ")),
-		Labels: dt.getLabels(),
-	}
-
-	hostConfig := &container.HostConfig{
-		AutoRemove: false,
-	}
-
-	networkConfig := &network.NetworkingConfig{}
-
-	return containerConfig, hostConfig, networkConfig
-}
-
-// NewContainer creates a new container builder prepared with the given inputs.
-func (dt *DockerTest) NewContainer(containerName, image, cmd string) *ContainerBuilder {
-	containerConfig, hostConfig, networkConfig := dt.createBaseContainerStructs(cmd, image)
+func (dt *DockerTest) NewContainerBuilder() *ContainerBuilder {
 	return &ContainerBuilder{
-		ContainerConfig:  containerConfig,
-		HostConfig:       hostConfig,
-		NetworkingConfig: networkConfig,
-		ContainerName:    fmt.Sprintf("%s-%s", containerName, dt.sessionId),
-		originalName:     containerName,
-		ctx:              dt.ctx,
-		dockerClient:     dt.dockerClient,
+		ctx:          dt.ctx,
+		sessionId:    dt.sessionId,
+		dockerClient: dt.dockerClient,
+		ContainerConfig: &container.Config{
+			Labels: dt.getLabels(),
+		},
+		NetworkingConfig: &network.NetworkingConfig{},
+		HostConfig:       &container.HostConfig{},
 	}
 }
 

@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
-
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/network"
+	"github.com/docker/docker/api/types/strslice"
 	"github.com/docker/docker/client"
+	"github.com/mohae/deepcopy"
+	"strings"
+	"time"
 )
 
 // Container is a access wrapper for a docker container
@@ -21,12 +23,12 @@ type Container struct {
 	dockerClient  *client.Client
 }
 
-// StartContainer starts the container.
-func (c *Container) StartContainer() error {
+// Start starts the container.
+func (c *Container) Start() error {
 	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.StartOptions)
 }
 
-func (c *Container) GetExitCode() (int, error) {
+func (c *Container) ExitCode() (int, error) {
 	insp, err := c.dockerClient.ContainerInspect(c.ctx, c.containerBody.ID)
 	if err != nil {
 		return -1, err
@@ -48,10 +50,21 @@ type ContainerBuilder struct {
 	ContainerName    string
 	originalName     string
 	ctx              context.Context
+	sessionId        string
 }
 
-// CreateContainer creates a container from the current builders state.
-func (b *ContainerBuilder) CreateContainer() (*Container, error) {
+func (b *ContainerBuilder) NewContainerBuilder() *ContainerBuilder {
+	newBuilder := deepcopy.Copy(b).(*ContainerBuilder)
+	newBuilder.ctx = b.ctx
+	newBuilder.dockerClient = b.dockerClient
+	newBuilder.sessionId = b.sessionId
+	newBuilder.originalName = b.originalName
+
+	return newBuilder
+}
+
+// Build creates a container from the current builders state.
+func (b *ContainerBuilder) Build() (*Container, error) {
 
 	containerBody, err := b.dockerClient.ContainerCreate(b.ctx, b.ContainerConfig, b.HostConfig, b.NetworkingConfig, b.ContainerName)
 	if err != nil {
@@ -65,8 +78,8 @@ func (b *ContainerBuilder) CreateContainer() (*Container, error) {
 	}, nil
 }
 
-// ConnectToNetwork connects the container to the given network,
-func (b *ContainerBuilder) ConnectToNetwork(n *Net) *ContainerBuilder {
+// Connect connects the container to the given network,
+func (b *ContainerBuilder) Connect(n *Net) *ContainerBuilder {
 	b.HostConfig.NetworkMode = container.NetworkMode(n.NetworkName)
 	b.ensureNetworkConfig(n)
 	b.NetworkingConfig.EndpointsConfig[n.NetworkName].NetworkID = n.NetworkID
@@ -80,20 +93,50 @@ func (b *ContainerBuilder) Mount(localPath string, containerPath string) *Contai
 	return b
 }
 
-//SetEnv defines an environment variable that will be set in the container.
-func (b *ContainerBuilder) SetEnv(name string, value string) *ContainerBuilder {
+// Cmd sets the command that is executed when the container starts
+func (b *ContainerBuilder) Cmd(cmd string) *ContainerBuilder {
+	b.ContainerConfig.Cmd = strslice.StrSlice(strings.Split(cmd, " "))
+	return b
+}
+func (b *ContainerBuilder) Name(s string) *ContainerBuilder {
+	b.originalName = s
+	b.ContainerName = fmt.Sprintf("%s-%s", s, b.sessionId)
+	return b
+}
+
+func (b *ContainerBuilder) AutoRemove(v bool) *ContainerBuilder {
+	b.HostConfig.AutoRemove = v
+	return b
+}
+
+func (b *ContainerBuilder) Image(image string) *ContainerBuilder {
+	b.ContainerConfig.Image = image
+	return b
+}
+
+func (b *ContainerBuilder) HealthShellCmd(cmd string) *ContainerBuilder {
+	b.ContainerConfig.Healthcheck = &container.HealthConfig{
+		Test:     []string{"CMD-SHELL", cmd},
+		Interval: 200 * time.Millisecond,
+		Retries:  20,
+	}
+	return b
+}
+
+//Env defines an environment variable that will be set in the container.
+func (b *ContainerBuilder) Env(name string, value string) *ContainerBuilder {
 	b.ContainerConfig.Env = append(b.ContainerConfig.Env, fmt.Sprintf("%s=%s", name, value))
 	return b
 }
 
-// SetWorkingDir defines the working directory for the container.
-func (b *ContainerBuilder) SetWorkingDir(wd string) *ContainerBuilder {
+// WorkingDir defines the working directory for the container.
+func (b *ContainerBuilder) WorkingDir(wd string) *ContainerBuilder {
 	b.ContainerConfig.WorkingDir = wd
 	return b
 }
 
-// AddDns adds a dns server to the container.
-func (b *ContainerBuilder) AddDns(dnsServerIP string) *ContainerBuilder {
+// Dns adds a dns server to the container.
+func (b *ContainerBuilder) Dns(dnsServerIP string) *ContainerBuilder {
 	b.HostConfig.DNS = append(b.HostConfig.DNS, dnsServerIP)
 	return b
 }
@@ -121,8 +164,8 @@ func (b *ContainerBuilder) ensureNetworkConfig(n *Net) {
 	}
 }
 
-// SetIPAddress defines the IP address used by the container.
-func (b *ContainerBuilder) SetIPAddress(ipAddress string, n *Net) *ContainerBuilder {
+// IPAddress defines the IP address used by the container.
+func (b *ContainerBuilder) IPAddress(ipAddress string, n *Net) *ContainerBuilder {
 	if b.NetworkingConfig.EndpointsConfig == nil {
 		b.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
 	}
@@ -132,14 +175,5 @@ func (b *ContainerBuilder) SetIPAddress(ipAddress string, n *Net) *ContainerBuil
 		b.NetworkingConfig.EndpointsConfig[n.NetworkName].IPAMConfig = &network.EndpointIPAMConfig{IPv4Address: ipAddress}
 	}
 
-	return b
-}
-
-func (b *ContainerBuilder) SetHealthShellCmd(cmd string) *ContainerBuilder {
-	b.ContainerConfig.Healthcheck = &container.HealthConfig{
-		Test:     []string{"CMD-SHELL", cmd},
-		Interval: 200 * time.Millisecond,
-		Retries:  20,
-	}
 	return b
 }
