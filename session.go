@@ -17,8 +17,8 @@ import (
 	"github.com/docker/docker/client"
 )
 
-// New creates a new Test and returns a Session instance to work with.
-func New() (*Session, error) {
+// NewSession creates a new Test and returns a Session instance to work with.
+func NewSession() (*Session, error) {
 	sessionId := time.Now().Format("20060102150405")
 	dockerClient, err := client.NewEnvClient()
 	if err != nil {

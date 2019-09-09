@@ -7,7 +7,7 @@ import (
 	"github.com/docker/docker/client"
 )
 
-type Net struct {
+type Network struct {
 	NetworkID   string
 	NetworkName string
 }
@@ -19,11 +19,11 @@ type NetworkBuilder struct {
 	ctx          context.Context
 }
 
-func (n *NetworkBuilder) Create() (*Net, error) {
+func (n *NetworkBuilder) Create() (*Network, error) {
 	resp, err := n.dockerClient.NetworkCreate(n.ctx, n.Name, n.Options)
 	if err != nil {
 		return nil, err
 	}
 
-	return &Net{resp.ID, n.Name}, nil
+	return &Network{resp.ID, n.Name}, nil
 }

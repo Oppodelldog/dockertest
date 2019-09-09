@@ -2,10 +2,11 @@ package main
 
 import (
 	"fmt"
-	"github.com/Oppodelldog/dockertest"
 	"os"
 	"runtime/debug"
 	"time"
+
+	"github.com/Oppodelldog/dockertest"
 )
 
 const waitingTimeout = time.Minute
@@ -17,7 +18,7 @@ func main() {
 	panicOnErr(err)
 
 	// start a new test
-	test, err := dockertest.New()
+	test, err := dockertest.NewSession()
 	panicOnErr(err)
 
 	// initialize testResult which is passed into deferred cleanup method
@@ -82,7 +83,7 @@ func main() {
 func cleanup(test *dockertest.Session, testResult *TestResult) {
 	test.Cleanup()
 	if r := recover(); r != nil {
-		fmt.Println("ERROR: %v", string(debug.Stack()))
+		fmt.Printf("ERROR: %v\n", string(debug.Stack()))
 	}
 	os.Exit(testResult.ExitCode)
 }

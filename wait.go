@@ -3,11 +3,12 @@ package dockertest
 import (
 	"context"
 	"fmt"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/client"
 	"reflect"
 	"runtime"
 	"time"
+
+	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/client"
 )
 
 var pollingPause = 1000 * time.Millisecond
