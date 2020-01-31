@@ -37,12 +37,12 @@ func main() {
 	panicOnErr(err)
 
 	basicConfiguration := test.NewContainerBuilder().
-		Image("golang:1.13.0").
+		Image("golang:1.13.7").
 		Connect(net).
 		WorkingDir("/app/examples/api").
 		Mount(projectDir, "/app")
 
-	// create the API container, the micro-service under test
+	// create the API container, the system under test
 	api, err := basicConfiguration.NewContainerBuilder().
 		Name("api").
 		Cmd("go run nameapi/main.go").
