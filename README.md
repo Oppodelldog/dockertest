@@ -1,6 +1,7 @@
 # dockertest
 [![GoDoc](https://godoc.org/github.com/Oppodelldog/dockertest?status.svg)](https://godoc.org/github.com/Oppodelldog/dockertest)
 [![Go Report Card](https://goreportcard.com/badge/github.com/Oppodelldog/dockertest)](https://goreportcard.com/report/github.com/Oppodelldog/dockertest)
+[![Build Status](https://travis-ci.org/Oppodelldog/dockertest.svg?branch=master)](https://travis-ci.org/Oppodelldog/dockertest)
 
 This project is an experimental library that wraps docker client to support testing services in docker containers.
 
