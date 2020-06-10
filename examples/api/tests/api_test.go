@@ -8,19 +8,12 @@ import (
 	"testing"
 )
 
-var apiBaseUrl = "http://localhost:8080"
-
-func init() {
-	if baseUrlFromEnv, ok := os.LookupEnv("API_BASE_URL"); ok {
-		apiBaseUrl = baseUrlFromEnv
-	}
-}
-
+const defaultBaseAPIURL = "http://localhost:8080"
 const someName = "Kermit"
 
 func TestApi(t *testing.T) {
-	t.Logf("running tests against: %s", apiBaseUrl)
-	resp, err := http.Get(apiBaseUrl)
+	t.Logf("running tests against: %s", apiBaseURL())
+	resp, err := http.Get(apiBaseURL())
 	failOnError(t, err)
 
 	content, err := ioutil.ReadAll(resp.Body)
@@ -30,16 +23,24 @@ func TestApi(t *testing.T) {
 		t.Fatalf("Did expect and empty result for get in the first call, but got: %v", string(content))
 	}
 
-	req, err := http.NewRequest("PUT", fmt.Sprintf("%s/%s", apiBaseUrl, someName), nil)
+	var req *http.Request
+	req, err = http.NewRequest("PUT", fmt.Sprintf("%s/%s", apiBaseURL(), someName), nil)
+	failOnError(t, err)
+
 	resp, err = http.DefaultClient.Do(req)
 	failOnError(t, err)
+
+	defer func() {
+		err := resp.Body.Close()
+		t.Fatalf("Error closing response body: %v", err)
+	}()
 
 	expectedStatusCode := http.StatusOK
 	if resp.StatusCode != expectedStatusCode {
 		t.Fatalf("Expected status code to be %v, but got: %v", expectedStatusCode, resp.StatusCode)
 	}
 
-	resp, err = http.Get(apiBaseUrl)
+	resp, err = http.Get(apiBaseURL())
 	failOnError(t, err)
 
 	content, err = ioutil.ReadAll(resp.Body)
@@ -54,4 +55,12 @@ func failOnError(t *testing.T, err error) {
 	if err != nil {
 		t.Fatalf("Did not expect and error, but got: %v ", err)
 	}
+}
+
+func apiBaseURL() string {
+	if baseURLFromEnv, ok := os.LookupEnv("API_BASE_URL"); ok {
+		return baseURLFromEnv
+	}
+
+	return defaultBaseAPIURL
 }

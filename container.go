@@ -12,7 +12,9 @@ import (
 	"github.com/mohae/deepcopy"
 )
 
-// Container is a access wrapper for a docker container
+var ErrContainerStillRunning = errors.New("container is running, it has no exit code yet")
+
+// Container is a access wrapper for a docker container.
 type Container struct {
 	Name          string
 	startOptions  types.ContainerStartOptions
@@ -34,7 +36,7 @@ func (c *Container) ExitCode() (int, error) {
 	}
 
 	if inspectResult.State.Running {
-		return -1, errors.New("container is running, it has no exit code yet")
+		return -1, ErrContainerStillRunning
 	}
 
 	return inspectResult.State.ExitCode, nil
@@ -49,7 +51,7 @@ type ContainerBuilder struct {
 	NetworkingConfig *network.NetworkingConfig
 	ContainerName    string
 	originalName     string
-	sessionId        string
+	sessionID        string
 	ClientEnabled
 }
 
@@ -57,7 +59,7 @@ func (b *ContainerBuilder) NewContainerBuilder() *ContainerBuilder {
 	newBuilder := deepcopy.Copy(b).(*ContainerBuilder)
 	newBuilder.ctx = b.ctx
 	newBuilder.dockerClient = b.dockerClient
-	newBuilder.sessionId = b.sessionId
+	newBuilder.sessionID = b.sessionID
 	newBuilder.originalName = b.originalName
 
 	return newBuilder
@@ -65,7 +67,13 @@ func (b *ContainerBuilder) NewContainerBuilder() *ContainerBuilder {
 
 // Build creates a container from the current builders state.
 func (b *ContainerBuilder) Build() (*Container, error) {
-	containerBody, err := b.dockerClient.ContainerCreate(b.ctx, b.ContainerConfig, b.HostConfig, b.NetworkingConfig, b.ContainerName)
+	containerBody, err := b.dockerClient.ContainerCreate(
+		b.ctx,
+		b.ContainerConfig,
+		b.HostConfig,
+		b.NetworkingConfig,
+		b.ContainerName,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -77,7 +85,7 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 	}, nil
 }
 
-// Connect connects the container to the given network,
+// Connect connects the container to the given network.
 func (b *ContainerBuilder) Connect(n *Network) *ContainerBuilder {
 	b.HostConfig.NetworkMode = container.NetworkMode(n.NetworkName)
 	b.ensureNetworkConfig(n)
@@ -92,7 +100,7 @@ func (b *ContainerBuilder) Mount(localPath string, containerPath string) *Contai
 	return b
 }
 
-// Cmd sets the command that is executed when the container starts
+// Cmd sets the command that is executed when the container starts.
 func (b *ContainerBuilder) Cmd(cmd string) *ContainerBuilder {
 	b.ContainerConfig.Cmd = strings.Split(cmd, " ")
 	return b
@@ -102,9 +110,11 @@ func (b *ContainerBuilder) Cmd(cmd string) *ContainerBuilder {
 func (b *ContainerBuilder) Name(s string) *ContainerBuilder {
 	b.originalName = s
 	b.ContainerName = s
-	if b.sessionId != "" {
-		b.ContainerName = fmt.Sprintf("%s-%s", s, b.sessionId)
+
+	if b.sessionID != "" {
+		b.ContainerName = fmt.Sprintf("%s-%s", s, b.sessionID)
 	}
+
 	return b
 }
 
@@ -120,10 +130,11 @@ func (b *ContainerBuilder) Image(image string) *ContainerBuilder {
 	return b
 }
 
-//HealthDisable disabled the health check
+//HealthDisable disabled the health check.
 func (b *ContainerBuilder) HealthDisable() *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Test = []string{"NONE"}
+
 	return b
 }
 
@@ -131,13 +142,16 @@ func (b *ContainerBuilder) HealthDisable() *ContainerBuilder {
 func (b *ContainerBuilder) HealthCmd(cmd string) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Test = []string{"CMD", cmd}
+
 	return b
 }
 
-//HealthShellCmd sets a command that is executed in the containers default shell to determine if the container is healthy
+//HealthShellCmd sets a command that is executed in the containers default shell
+//to determine if the container is healthy.
 func (b *ContainerBuilder) HealthShellCmd(cmd string) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Test = []string{"CMD-SHELL", cmd}
+
 	return b
 }
 
@@ -145,6 +159,7 @@ func (b *ContainerBuilder) HealthShellCmd(cmd string) *ContainerBuilder {
 func (b *ContainerBuilder) HealthTimeout(t time.Duration) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Timeout = t
+
 	return b
 }
 
@@ -152,13 +167,15 @@ func (b *ContainerBuilder) HealthTimeout(t time.Duration) *ContainerBuilder {
 func (b *ContainerBuilder) HealthInterval(d time.Duration) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Interval = d
+
 	return b
 }
 
-//HealthRetries sets the number of consecutive failures needed to consider a container as unhealthy
+//HealthRetries sets the number of consecutive failures needed to consider a container as unhealthy.
 func (b *ContainerBuilder) HealthRetries(r int) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Retries = r
+
 	return b
 }
 
@@ -171,32 +188,39 @@ func (b *ContainerBuilder) ensureHealth() {
 //Env defines an environment variable that will be set in the container.
 func (b *ContainerBuilder) Env(name string, value string) *ContainerBuilder {
 	b.ContainerConfig.Env = append(b.ContainerConfig.Env, fmt.Sprintf("%s=%s", name, value))
+
 	return b
 }
 
 // WorkingDir defines the working directory for the container.
 func (b *ContainerBuilder) WorkingDir(wd string) *ContainerBuilder {
 	b.ContainerConfig.WorkingDir = wd
+
 	return b
 }
 
-// Dns adds a dns server to the container.
-func (b *ContainerBuilder) Dns(dnsServerIP string) *ContainerBuilder {
+// DNS adds a dns server to the container.
+func (b *ContainerBuilder) DNS(dnsServerIP string) *ContainerBuilder {
 	b.HostConfig.DNS = append(b.HostConfig.DNS, dnsServerIP)
+
 	return b
 }
 
 // UseOriginalName removes the unique session-identifier from the container name.
 func (b *ContainerBuilder) UseOriginalName() *ContainerBuilder {
 	b.ContainerName = b.originalName
+
 	return b
 }
 
 // Link links a foreign container.
 func (b *ContainerBuilder) Link(container *Container, alias string, n *Network) *ContainerBuilder {
 	b.ensureNetworkConfig(n)
-	links := b.NetworkingConfig.EndpointsConfig[n.NetworkName].Links
-	b.NetworkingConfig.EndpointsConfig[n.NetworkName].Links = append(links, fmt.Sprintf("%s:%s", container.Name, alias))
+	b.NetworkingConfig.EndpointsConfig[n.NetworkName].Links = append(
+		b.NetworkingConfig.EndpointsConfig[n.NetworkName].Links,
+		fmt.Sprintf("%s:%s", container.Name, alias),
+	)
+
 	return b
 }
 
@@ -204,6 +228,7 @@ func (b *ContainerBuilder) ensureNetworkConfig(n *Network) {
 	if b.NetworkingConfig.EndpointsConfig == nil {
 		b.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
 	}
+
 	if b.NetworkingConfig.EndpointsConfig[n.NetworkName] == nil {
 		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = &network.EndpointSettings{}
 	}
@@ -214,8 +239,10 @@ func (b *ContainerBuilder) IPAddress(ipAddress string, n *Network) *ContainerBui
 	if b.NetworkingConfig.EndpointsConfig == nil {
 		b.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
 	}
+
 	if b.NetworkingConfig.EndpointsConfig[n.NetworkName] == nil {
-		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = &network.EndpointSettings{IPAMConfig: &network.EndpointIPAMConfig{IPv4Address: ipAddress}}
+		endpointSetting := &network.EndpointSettings{IPAMConfig: &network.EndpointIPAMConfig{IPv4Address: ipAddress}}
+		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = endpointSetting
 	} else {
 		b.NetworkingConfig.EndpointsConfig[n.NetworkName].IPAMConfig = &network.EndpointIPAMConfig{IPv4Address: ipAddress}
 	}

@@ -13,7 +13,7 @@ import (
 
 const waitingTimeout = time.Minute
 
-// functional tests for name api
+// functional tests for name api.
 func main() {
 	// the local test dir will help mounting the project into the containers
 	projectDir, err := os.Getwd()
@@ -37,7 +37,7 @@ func main() {
 	panicOnErr(err)
 
 	basicConfiguration := test.NewContainerBuilder().
-		Image("golang:1.13.7").
+		Image("golang:1.14.4").
 		Connect(net).
 		WorkingDir("/app/examples/api").
 		Mount(projectDir, "/app")
@@ -95,9 +95,11 @@ func cleanup(test *dockertest.Session, testResult *TestResult) {
 	fmt.Println("CLEANUP-START")
 	test.Cleanup()
 	fmt.Println("CLEANUP-DONE")
+
 	if r := recover(); r != nil {
 		fmt.Printf("ERROR: %v\n", string(debug.Stack()))
 	}
+
 	os.Exit(testResult.ExitCode)
 }
 
