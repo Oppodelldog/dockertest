@@ -16,6 +16,13 @@ func TestApi(t *testing.T) {
 	resp, err := http.Get(apiBaseURL())
 	failOnError(t, err)
 
+	defer func() {
+		err := resp.Body.Close()
+		if err != nil {
+			t.Fatalf("Error closing response body: %v", err)
+		}
+	}()
+
 	content, err := ioutil.ReadAll(resp.Body)
 	failOnError(t, err)
 
@@ -32,7 +39,9 @@ func TestApi(t *testing.T) {
 
 	defer func() {
 		err := resp.Body.Close()
-		t.Fatalf("Error closing response body: %v", err)
+		if err != nil {
+			t.Fatalf("Error closing response body: %v", err)
+		}
 	}()
 
 	expectedStatusCode := http.StatusOK
