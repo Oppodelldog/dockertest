@@ -13,6 +13,7 @@ import (
 const waitingTimeout = time.Minute
 
 // functional tests for name api.
+// nolint:funlen
 func main() {
 	// the local test dir will help mounting the project into the containers
 	projectDir, err := os.Getwd()

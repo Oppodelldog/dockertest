@@ -6,21 +6,29 @@ import (
 	"time"
 )
 
-var apiBaseUrl = "http://localhost:8080"
+const apiBaseURL = "http://localhost:8080"
+const clientTimeout = time.Millisecond * 30
+const unhealthyExitCode = 2
 
-func init() {
-	if baseUrlFromEnv, ok := os.LookupEnv("API_BASE_URL"); ok {
-		apiBaseUrl = baseUrlFromEnv
+func getBaseURL() string {
+	if baseURLFromEnv, ok := os.LookupEnv("API_BASE_URL"); ok {
+		return baseURLFromEnv
 	}
+
+	return apiBaseURL
 }
 
 func main() {
-	http.DefaultClient.Timeout = time.Millisecond * 30
-	r, err := http.DefaultClient.Get(apiBaseUrl)
+	http.DefaultClient.Timeout = clientTimeout
+
+	r, err := http.DefaultClient.Get(getBaseURL())
 	if err != nil {
 		os.Exit(1)
 	}
-	if r.StatusCode != 200 {
-		os.Exit(2)
+
+	defer func() { _ = r.Body.Close() }()
+
+	if r.StatusCode != http.StatusOK {
+		os.Exit(unhealthyExitCode)
 	}
 }
