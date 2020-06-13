@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/Oppodelldog/dockertest)](https://goreportcard.com/report/github.com/Oppodelldog/dockertest)
 [![Build Status](https://travis-ci.org/Oppodelldog/dockertest.svg?branch=master)](https://travis-ci.org/Oppodelldog/dockertest)
 
-This project is an experimental library that wraps docker client to support testing services in docker containers.
+This project is an experimental library that wraps the docker client to ease testing services in docker containers.
 
 I split it out from my docker-dns project where I found the need for functional testing a dns-container behaving well after build.
 
