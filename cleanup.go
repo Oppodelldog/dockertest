@@ -20,19 +20,19 @@ type cleaner struct {
 	containerStopTimeout time.Duration
 }
 
-func (c *cleaner) cleanupTestNetwork() {
+func (c cleaner) cleanupTestNetwork() {
 	res, err := c.dockerClient.NetworkList(c.ctx, types.NetworkListOptions{Filters: getBasicFilterArgs()})
 	panicOnError(err)
 
 	for _, networkResource := range res {
 		err := c.dockerClient.NetworkRemove(c.ctx, networkResource.ID)
 		if err != nil {
-			fmt.Printf("could not remove network: %v\n", err)
+			fmt.Printf("could not remove Network: %v\n", err)
 		}
 	}
 }
 
-func (c *cleaner) removeDockerTestContainers(sessionID string) {
+func (c cleaner) removeDockerTestContainers(sessionID string) {
 	removeContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
 	args.Add("label", fmt.Sprintf("docker-dns-session=%s", sessionID))
@@ -51,7 +51,7 @@ func (c *cleaner) removeDockerTestContainers(sessionID string) {
 	removeContainers.Wait()
 }
 
-func (c *cleaner) stopSessionContainers(sessionID string) {
+func (c cleaner) stopSessionContainers(sessionID string) {
 	shutDownContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
 	args.Add("label", fmt.Sprintf("docker-dns-session=%s", sessionID))
@@ -71,7 +71,7 @@ func (c *cleaner) stopSessionContainers(sessionID string) {
 	shutDownContainers.Wait()
 }
 
-func (c *cleaner) removeContainer(containerID string, wg *sync.WaitGroup) {
+func (c cleaner) removeContainer(containerID string, wg *sync.WaitGroup) {
 	_ = c.dockerClient.ContainerRemove(c.ctx,
 		containerID,
 		types.ContainerRemoveOptions{RemoveVolumes: true, RemoveLinks: false, Force: true},
@@ -80,7 +80,7 @@ func (c *cleaner) removeContainer(containerID string, wg *sync.WaitGroup) {
 	wg.Done()
 }
 
-func (c *cleaner) shutDownContainer(containerID string, wg *sync.WaitGroup) {
+func (c cleaner) shutDownContainer(containerID string, wg *sync.WaitGroup) {
 	stopTimeout := c.containerStopTimeout
 	_ = c.dockerClient.ContainerStop(c.ctx, containerID, &stopTimeout)
 

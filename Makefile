@@ -14,6 +14,11 @@ test: ## Run all the tests
 	go env
 	go list ./... | xargs -n1 -I{} sh -c 'go test -race {}'
 
+functional-test:
+	go run examples/api/main.go
+
+ci: functional-test lint
+
 fmt: ## gofmt and goimports all go files
 	find . -name '*.go' -not -wholename './vendor/*' | while read -r file; do gofmt -w -s "$$file"; goimports -w "$$file"; done
 	

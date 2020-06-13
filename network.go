@@ -12,10 +12,10 @@ type Network struct {
 type NetworkBuilder struct {
 	Name    string
 	Options types.NetworkCreate
-	ClientEnabled
+	clientEnabled
 }
 
-func (n *NetworkBuilder) Create() (*Network, error) {
+func (n NetworkBuilder) Create() (*Network, error) {
 	resp, err := n.dockerClient.NetworkCreate(n.ctx, n.Name, n.Options)
 	if err != nil {
 		return nil, err

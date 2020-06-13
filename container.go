@@ -8,7 +8,7 @@ import (
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
-	"github.com/docker/docker/api/types/network"
+	dockerNetwork "github.com/docker/docker/api/types/network"
 	"github.com/mohae/deepcopy"
 )
 
@@ -19,17 +19,17 @@ type Container struct {
 	Name          string
 	startOptions  types.ContainerStartOptions
 	containerBody container.ContainerCreateCreatedBody
-	ClientEnabled
+	clientEnabled
 }
 
 // Start starts the container.
-func (c *Container) Start() error {
+func (c Container) Start() error {
 	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.startOptions)
 }
 
 // ExitCode returns the exit code of the container.
 // The container must be exited and exist, otherwise an error is returned.
-func (c *Container) ExitCode() (int, error) {
+func (c Container) ExitCode() (int, error) {
 	inspectResult, inspectError := c.dockerClient.ContainerInspect(c.ctx, c.containerBody.ID)
 	if inspectError != nil {
 		return -1, inspectError
@@ -48,11 +48,11 @@ func (c *Container) ExitCode() (int, error) {
 type ContainerBuilder struct {
 	ContainerConfig  *container.Config
 	HostConfig       *container.HostConfig
-	NetworkingConfig *network.NetworkingConfig
+	NetworkingConfig *dockerNetwork.NetworkingConfig
 	ContainerName    string
 	originalName     string
 	sessionID        string
-	ClientEnabled
+	clientEnabled
 }
 
 func (b *ContainerBuilder) NewContainerBuilder() *ContainerBuilder {
@@ -81,11 +81,11 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 	return &Container{
 		Name:          b.ContainerName,
 		containerBody: containerBody,
-		ClientEnabled: b.ClientEnabled,
+		clientEnabled: b.clientEnabled,
 	}, nil
 }
 
-// Connect connects the container to the given network.
+// Connect connects the container to the given Network.
 func (b *ContainerBuilder) Connect(n *Network) *ContainerBuilder {
 	b.HostConfig.NetworkMode = container.NetworkMode(n.NetworkName)
 	b.ensureNetworkConfig(n)
@@ -226,25 +226,29 @@ func (b *ContainerBuilder) Link(container *Container, alias string, n *Network) 
 
 func (b *ContainerBuilder) ensureNetworkConfig(n *Network) {
 	if b.NetworkingConfig.EndpointsConfig == nil {
-		b.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+		b.NetworkingConfig.EndpointsConfig = map[string]*dockerNetwork.EndpointSettings{}
 	}
 
 	if b.NetworkingConfig.EndpointsConfig[n.NetworkName] == nil {
-		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = &network.EndpointSettings{}
+		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = &dockerNetwork.EndpointSettings{}
 	}
 }
 
 // IPAddress defines the IP address used by the container.
 func (b *ContainerBuilder) IPAddress(ipAddress string, n *Network) *ContainerBuilder {
 	if b.NetworkingConfig.EndpointsConfig == nil {
-		b.NetworkingConfig.EndpointsConfig = map[string]*network.EndpointSettings{}
+		b.NetworkingConfig.EndpointsConfig = map[string]*dockerNetwork.EndpointSettings{}
 	}
 
 	if b.NetworkingConfig.EndpointsConfig[n.NetworkName] == nil {
-		endpointSetting := &network.EndpointSettings{IPAMConfig: &network.EndpointIPAMConfig{IPv4Address: ipAddress}}
+		endpointSetting := &dockerNetwork.EndpointSettings{
+			IPAMConfig: &dockerNetwork.EndpointIPAMConfig{IPv4Address: ipAddress},
+		}
 		b.NetworkingConfig.EndpointsConfig[n.NetworkName] = endpointSetting
 	} else {
-		b.NetworkingConfig.EndpointsConfig[n.NetworkName].IPAMConfig = &network.EndpointIPAMConfig{IPv4Address: ipAddress}
+		b.NetworkingConfig.EndpointsConfig[n.NetworkName].IPAMConfig = &dockerNetwork.EndpointIPAMConfig{
+			IPv4Address: ipAddress,
+		}
 	}
 
 	return b

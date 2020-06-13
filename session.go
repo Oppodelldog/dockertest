@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/network"
+	dockerNetwork "github.com/docker/docker/api/types/network"
 	"github.com/docker/docker/client"
 )
 
@@ -34,7 +34,7 @@ func NewSession() (*Session, error) {
 
 	return &Session{
 		ID: sessionID,
-		ClientEnabled: ClientEnabled{
+		clientEnabled: clientEnabled{
 			cancelCtx:    cancel,
 			ctx:          ctx,
 			dockerClient: dockerClient,
@@ -46,7 +46,7 @@ func NewSession() (*Session, error) {
 type Session struct {
 	ID     string
 	logDir string
-	ClientEnabled
+	clientEnabled
 }
 
 func panicOnError(err error) {
@@ -150,48 +150,48 @@ func (dt *Session) DumpContainerLogs(container ...*Container) {
 	}
 }
 
-// CreateSimpleNetwork creates a bridged network with the given name, subnet mask and ip range.
-func (dt *Session) CreateBasicNetwork(networkName string) *NetworkBuilder {
+// CreateSimpleNetwork creates a bridged Network with the given name, subnet mask and ip range.
+func (dt *Session) CreateBasicNetwork(networkName string) NetworkBuilder {
 	ctx, cancel := context.WithTimeout(context.Background(), cleanerTimeout)
 	defer cancel()
 
 	cleaner := newCleaner(ctx, dt)
 	cleaner.cleanupTestNetwork()
 
-	return &NetworkBuilder{
-		ClientEnabled: dt.ClientEnabled,
+	return NetworkBuilder{
+		clientEnabled: dt.clientEnabled,
 		Name:          networkName,
 		Options: types.NetworkCreate{
 			CheckDuplicate: true,
 			Attachable:     true,
 			Driver:         "bridge",
-			IPAM: &network.IPAM{
+			IPAM: &dockerNetwork.IPAM{
 				Driver: "default",
-				Config: []network.IPAMConfig{},
+				Config: []dockerNetwork.IPAMConfig{},
 			},
 			Labels: dt.getLabels(),
 		},
 	}
 }
 
-// CreateSimpleNetwork creates a bridged network with the given name, subnet mask and ip range.
-func (dt *Session) CreateSimpleNetwork(networkName, subNet, ipRange string) *NetworkBuilder {
+// CreateSimpleNetwork creates a bridged Network with the given name, subnet mask and ip range.
+func (dt *Session) CreateSimpleNetwork(networkName, subNet, ipRange string) NetworkBuilder {
 	ctx, cancel := context.WithTimeout(context.Background(), cleanerTimeout)
 	defer cancel()
 
 	cleaner := newCleaner(ctx, dt)
 	cleaner.cleanupTestNetwork()
 
-	return &NetworkBuilder{
-		ClientEnabled: dt.ClientEnabled,
+	return NetworkBuilder{
+		clientEnabled: dt.clientEnabled,
 		Name:          networkName,
 		Options: types.NetworkCreate{
 			CheckDuplicate: true,
 			Attachable:     true,
 			Driver:         "bridge",
-			IPAM: &network.IPAM{
+			IPAM: &dockerNetwork.IPAM{
 				Driver: "default",
-				Config: []network.IPAMConfig{
+				Config: []dockerNetwork.IPAMConfig{
 					{
 						Subnet:  subNet,
 						IPRange: ipRange,
@@ -205,12 +205,12 @@ func (dt *Session) CreateSimpleNetwork(networkName, subNet, ipRange string) *Net
 
 func (dt *Session) NewContainerBuilder() *ContainerBuilder {
 	return &ContainerBuilder{
-		ClientEnabled: dt.ClientEnabled,
+		clientEnabled: dt.clientEnabled,
 		sessionID:     dt.ID,
 		ContainerConfig: &container.Config{
 			Labels: dt.getLabels(),
 		},
-		NetworkingConfig: &network.NetworkingConfig{},
+		NetworkingConfig: &dockerNetwork.NetworkingConfig{},
 		HostConfig:       &container.HostConfig{},
 	}
 }
