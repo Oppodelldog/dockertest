@@ -199,8 +199,9 @@ func (b *ContainerBuilder) WorkingDir(wd string) *ContainerBuilder {
 	return b
 }
 
-// DNS adds a dns server to the container.
-func (b *ContainerBuilder) DNS(dnsServerIP string) *ContainerBuilder {
+// Dns adds a dns server to the container.
+// nolint: golint, stylecheck
+func (b *ContainerBuilder) Dns(dnsServerIP string) *ContainerBuilder {
 	b.HostConfig.DNS = append(b.HostConfig.DNS, dnsServerIP)
 
 	return b
