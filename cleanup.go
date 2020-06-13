@@ -33,57 +33,60 @@ func (c cleaner) cleanupTestNetwork() {
 }
 
 func (c cleaner) removeDockerTestContainers(sessionID string) {
-	removeContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
 	args.Add("label", fmt.Sprintf("docker-dns-session=%s", sessionID))
 
 	exitedContainers, err := c.dockerClient.ContainerList(c.ctx, types.ContainerListOptions{All: true, Filters: args})
 	if err == nil {
-		removeContainers.Add(len(exitedContainers))
+		wg := &sync.WaitGroup{}
+		wg.Add(len(exitedContainers))
 
 		for _, testContainer := range exitedContainers {
-			go c.removeContainer(testContainer.ID, removeContainers)
+			go func(ID string) {
+				c.removeContainer(ID)
+				wg.Done()
+			}(testContainer.ID)
 		}
+
+		wg.Wait()
 	} else {
 		fmt.Printf("error finding dockertest containers: %v\n", err)
 	}
-
-	removeContainers.Wait()
 }
 
 func (c cleaner) stopSessionContainers(sessionID string) {
-	shutDownContainers := &sync.WaitGroup{}
 	args := getBasicFilterArgs()
 	args.Add("label", fmt.Sprintf("docker-dns-session=%s", sessionID))
 	args.Add("status", "running")
 
 	containers, err := c.dockerClient.ContainerList(c.ctx, types.ContainerListOptions{All: true, Filters: args})
 	if err == nil {
-		shutDownContainers.Add(len(containers))
+		wg := &sync.WaitGroup{}
+		wg.Add(len(containers))
 
 		for _, testContainer := range containers {
-			go c.shutDownContainer(testContainer.ID, shutDownContainers)
+			go func(id string) {
+				go c.shutDownContainer(id)
+				wg.Done()
+			}(testContainer.ID)
 		}
+
+		wg.Wait()
 	} else {
 		fmt.Printf("error finding session containers: %v\n", err)
 	}
-
-	shutDownContainers.Wait()
 }
 
-func (c cleaner) removeContainer(containerID string, wg *sync.WaitGroup) {
+func (c cleaner) removeContainer(containerID string) {
 	_ = c.dockerClient.ContainerRemove(c.ctx,
 		containerID,
 		types.ContainerRemoveOptions{RemoveVolumes: true, RemoveLinks: false, Force: true},
 	)
-
-	wg.Done()
 }
 
-func (c cleaner) shutDownContainer(containerID string, wg *sync.WaitGroup) {
+func (c cleaner) shutDownContainer(containerID string) {
 	stopTimeout := c.containerStopTimeout
 	_ = c.dockerClient.ContainerStop(c.ctx, containerID, &stopTimeout)
 
 	waitForContainer(c.ctx, containerHasFadeAway, c.dockerClient, containerID)
-	wg.Done()
 }
