@@ -17,7 +17,7 @@ test: ## Run all the tests
 functional-test:
 	go run examples/api/main.go
 
-ci: functional-test lint
+ci: functional-test
 
 fmt: ## gofmt and goimports all go files
 	find . -name '*.go' -not -wholename './vendor/*' | while read -r file; do gofmt -w -s "$$file"; goimports -w "$$file"; done
