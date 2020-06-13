@@ -18,8 +18,8 @@ var ErrContainerStartTimeout = errors.New("timeout - container is not healthy")
 
 const cleanerTimeout = 10 * time.Second
 const mainLabel = "dockertest"
-const mainLabelValue = "dockertest"
-const sessionLabel = "docker-dns-session"
+const sessionLabel = mainLabel + "-session"
+const defaultMainLabelValue = "dockertest"
 
 // NewSession creates a new Test and returns a Session instance to work with.
 func NewSession() (*Session, error) {
@@ -33,7 +33,8 @@ func NewSession() (*Session, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 
 	return &Session{
-		ID: sessionID,
+		ID:        sessionID,
+		mainLabel: defaultMainLabelValue,
 		clientEnabled: clientEnabled{
 			cancelCtx:    cancel,
 			ctx:          ctx,
@@ -44,8 +45,9 @@ func NewSession() (*Session, error) {
 
 //Session is the main object when starting a docker driven container test.
 type Session struct {
-	ID     string
-	logDir string
+	ID        string
+	logDir    string
+	mainLabel string
 	clientEnabled
 }
 
@@ -64,9 +66,15 @@ func (dt *Session) SetLogDir(logDir string) {
 	dt.logDir = logDir
 }
 
-// WaitForContainerToExit returns a channel that blocks until the container has exited.
+// SetLabel sets the label all components of this session are assigned to.
+// it must be set before any further creation calls to take effect.
+func (dt *Session) SetLabel(label string) {
+	dt.mainLabel = label
+}
+
+// NotifyContainerExit returns a channel that blocks until the container has exited.
 // If the operation times out, it will try to kill the container.
-func (dt *Session) WaitForContainerToExit(container *Container, timeout time.Duration) chan bool {
+func (dt *Session) NotifyContainerExit(container *Container, timeout time.Duration) chan bool {
 	exitedCh := make(chan bool)
 
 	go func() {
@@ -85,9 +93,9 @@ func (dt *Session) WaitForContainerToExit(container *Container, timeout time.Dur
 	return exitedCh
 }
 
-// WaitForContainerToBeHealthy returns a channel that blocks until the given
+// NotifyContainerHealthy returns a channel that blocks until the given
 // container reaches healthy state or timeout occurrs.
-func (dt *Session) WaitForContainerToBeHealthy(container *Container, timeout time.Duration) chan error {
+func (dt *Session) NotifyContainerHealthy(container *Container, timeout time.Duration) chan error {
 	healthErr := make(chan error)
 
 	go func() {
@@ -103,7 +111,7 @@ func (dt *Session) WaitForContainerToBeHealthy(container *Container, timeout tim
 	return healthErr
 }
 
-// Cleanup removes all resources (like containers/networks) used for the test.
+// Cleanup removes all resources (like containers/networks) used for this session.
 func (dt *Session) Cleanup() {
 	ctx, cancel := context.WithTimeout(context.Background(), cleanerTimeout)
 	defer cancel()
@@ -114,9 +122,17 @@ func (dt *Session) Cleanup() {
 	cleaner.cleanupTestNetwork()
 }
 
+// CleanupRemains removes all resources (like containers/networks) this kind of test - identified by the Session Label.
+func (dt *Session) CleanupRemains() {
+	c := newRemainsCleaner(dt.ctx, dt.dockerClient)
+	c.stopContainers()
+	c.removeDockerTestContainers()
+	c.cleanupTestNetwork()
+}
+
 func (dt *Session) getLabels() map[string]string {
 	return map[string]string{
-		mainLabel:    mainLabelValue,
+		mainLabel:    dt.mainLabel,
 		sessionLabel: dt.ID,
 	}
 }
@@ -217,7 +233,7 @@ func (dt *Session) NewContainerBuilder() *ContainerBuilder {
 
 func getBasicFilterArgs() filters.Args {
 	filterArgs := filters.NewArgs()
-	filterArgs.Add("label", fmt.Sprintf("%s=%s", mainLabel, mainLabelValue))
+	filterArgs.Add("label", fmt.Sprintf("%s=%s", mainLabel, defaultMainLabelValue))
 
 	return filterArgs
 }

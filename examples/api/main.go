@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
-	"runtime/debug"
 	"syscall"
 	"time"
 
@@ -23,11 +22,14 @@ func main() {
 	test, err := dockertest.NewSession()
 	panicOnErr(err)
 
-	go listenForSigTerm(test)
+	go cancelSessionOnSigTerm(test)
+
+	// cleanup resources from a previous test
+	test.CleanupRemains()
 
 	// initialize testResult which is passed into deferred cleanup method
-	var testResult = &TestResult{ExitCode: -1}
-	defer cleanup(test, testResult)
+	var testResult = TestResult{ExitCode: -1}
+	defer cleanup(test, &testResult)
 
 	// let put test log output into a separate directory
 	test.SetLogDir("examples/api/test-logs")
@@ -65,7 +67,7 @@ func main() {
 	panicOnErr(err)
 
 	// wait until API is available
-	err = <-test.WaitForContainerToBeHealthy(api, waitingTimeout)
+	err = <-test.NotifyContainerHealthy(api, waitingTimeout)
 	panicOnErr(err)
 
 	// now start the tests
@@ -73,7 +75,7 @@ func main() {
 	panicOnErr(err)
 
 	// wait for tests to finish
-	<-test.WaitForContainerToExit(tests, waitingTimeout)
+	<-test.NotifyContainerExit(tests, waitingTimeout)
 
 	// grab the exit code from the exited container
 	testResult.ExitCode, err = tests.ExitCode()
@@ -83,10 +85,10 @@ func main() {
 	test.DumpContainerLogs(tests)
 }
 
-func listenForSigTerm(session *dockertest.Session) {
-	sigs := make(chan os.Signal, 1)
-	signal.Notify(sigs, syscall.SIGINT, syscall.SIGTERM)
-	<-sigs
+func cancelSessionOnSigTerm(session *dockertest.Session) {
+	sigCh := make(chan os.Signal, 1)
+	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
+	<-sigCh
 	session.Cancel()
 }
 
@@ -97,7 +99,7 @@ func cleanup(test *dockertest.Session, testResult *TestResult) {
 	fmt.Println("CLEANUP-DONE")
 
 	if r := recover(); r != nil {
-		fmt.Printf("ERROR: %v\n", string(debug.Stack()))
+		fmt.Printf("ERROR: %v\n", r)
 	}
 
 	os.Exit(testResult.ExitCode)
