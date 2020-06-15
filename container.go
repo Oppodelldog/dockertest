@@ -12,7 +12,11 @@ import (
 	"github.com/mohae/deepcopy"
 )
 
+// ErrContainerStillRunning is returned from a call to ExitCode() if the container is still running.
 var ErrContainerStillRunning = errors.New("container is running, it has no exit code yet")
+
+// ErrInspectingContainer is returned from a call to ExitCode() if the docker client returned an error on inspect.
+var ErrInspectingContainer = errors.New("error inspecting container")
 
 // Container is a access wrapper for a docker container.
 type Container struct {
@@ -32,7 +36,7 @@ func (c Container) Start() error {
 func (c Container) ExitCode() (int, error) {
 	inspectResult, inspectError := c.dockerClient.ContainerInspect(c.ctx, c.containerBody.ID)
 	if inspectError != nil {
-		return -1, inspectError
+		return -1, fmt.Errorf("%w: %v", ErrInspectingContainer, inspectError)
 	}
 
 	if inspectResult.State.Running {
@@ -55,6 +59,7 @@ type ContainerBuilder struct {
 	clientEnabled
 }
 
+// NewContainerBuilder returns a new *ContainerBuilder.
 func (b *ContainerBuilder) NewContainerBuilder() *ContainerBuilder {
 	newBuilder := deepcopy.Copy(b).(*ContainerBuilder)
 	newBuilder.ctx = b.ctx

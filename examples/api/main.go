@@ -106,6 +106,7 @@ func cleanup(test *dockertest.Session, testResult *TestResult) {
 	os.Exit(testResult.ExitCode)
 }
 
+// TestResult helps to share the exit code through a defer to the cleanup function.
 type TestResult struct {
 	ExitCode int
 }

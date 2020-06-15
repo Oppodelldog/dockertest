@@ -1,4 +1,4 @@
-// dockertest is intended to help in executing tests in containers.
+// Package dockertest is intended to help in executing tests in containers.
 //
 // This might be simple as executing unit tests in isolation on a docker host.
 // You might also want to execute more complex setups like functionally testing a microservice with it's dependencies.

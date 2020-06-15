@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/client"
 )
 
+// ErrContainerStartTimeout is returned from NotifyContainerHealthy when a container
+// was detected to be not healthy due to timeout.
 var ErrContainerStartTimeout = errors.New("timeout - container is not healthy")
 
 const cleanerTimeout = 10 * time.Second
@@ -103,7 +105,7 @@ func (dt *Session) NotifyContainerHealthy(container *Container, timeout time.Dur
 		defer cancel()
 
 		if !waitForContainer(ctxTimeout, containerIsHealthy, dt.dockerClient, container.containerBody.ID) {
-			healthErr <- ErrContainerStartTimeout
+			healthErr <- fmt.Errorf("%w. timed out after %s", ErrContainerStartTimeout, timeout)
 		}
 		healthErr <- nil
 	}()
@@ -166,7 +168,7 @@ func (dt *Session) DumpContainerLogs(container ...*Container) {
 	}
 }
 
-// CreateSimpleNetwork creates a bridged Network with the given name, subnet mask and ip range.
+// CreateBasicNetwork creates a bridged Network with the given name, subnet mask and ip range.
 func (dt *Session) CreateBasicNetwork(networkName string) NetworkBuilder {
 	ctx, cancel := context.WithTimeout(context.Background(), cleanerTimeout)
 	defer cancel()
@@ -219,6 +221,7 @@ func (dt *Session) CreateSimpleNetwork(networkName, subNet, ipRange string) Netw
 	}
 }
 
+// NewContainerBuilder returns a new *ContainerBuilder.
 func (dt *Session) NewContainerBuilder() *ContainerBuilder {
 	return &ContainerBuilder{
 		clientEnabled: dt.clientEnabled,
