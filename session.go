@@ -139,7 +139,7 @@ func (dt *Session) getLabels() map[string]string {
 	}
 }
 
-// Start starts one or multiple given containers.
+// StartContainer starts one or multiple given containers.
 // If some containers return error while starting the last error will be returned.
 func (dt *Session) StartContainer(container ...*Container) error {
 	var err error
