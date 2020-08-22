@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"time"
 
@@ -161,10 +162,22 @@ func (dt *Session) DumpInspect(container ...*Container) {
 	}
 }
 
-// DumpContainerLogs dumps the log of one or multiple containers to the log directory.
-func (dt *Session) DumpContainerLogs(container ...*Container) {
+// DumpContainerLogsToDir dumps the log of one or multiple containers to the log directory.
+func (dt *Session) DumpContainerLogsToDir(container ...*Container) {
 	for _, c := range container {
 		dumpContainerLog(dt.ctx, dt.dockerClient, c, dt.logDir)
+	}
+}
+
+// WriteContainerLogs writes the log of the given containers.
+func (dt *Session) WriteContainerLogs(w io.Writer, container ...*Container) {
+	for _, c := range container {
+		log, err := getContainerLog(dt.ctx, dt.dockerClient, c)
+		if err != nil {
+			fmt.Printf("error writing container '%s' log: %v", c.Name, err)
+			continue
+		}
+		writeLog(w, c, log)
 	}
 }
 

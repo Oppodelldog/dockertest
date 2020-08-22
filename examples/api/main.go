@@ -83,7 +83,8 @@ func main() {
 	panicOnErr(err)
 
 	// dump the test output to the log directory
-	test.DumpContainerLogs(tests)
+
+	test.DumpContainerLogsToDir(tests)
 }
 
 func cancelSessionOnSigTerm(session *dockertest.Session) {
