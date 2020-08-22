@@ -3,6 +3,7 @@ package dockertest
 import (
 	"errors"
 	"fmt"
+	"github.com/docker/go-connections/nat"
 	"strings"
 	"time"
 
@@ -226,6 +227,17 @@ func (b *ContainerBuilder) Link(container *Container, alias string, n *Network) 
 		b.NetworkingConfig.EndpointsConfig[n.NetworkName].Links,
 		fmt.Sprintf("%s:%s", container.Name, alias),
 	)
+
+	return b
+}
+
+// Port bind a Host port to a container port.
+func (b *ContainerBuilder) Port(containerPort, hostPort string) *ContainerBuilder {
+	b.HostConfig.PortBindings = nat.PortMap{
+		nat.Port(containerPort): []nat.PortBinding{
+			{HostIP: "0.0.0.0", HostPort: hostPort},
+		},
+	}
 
 	return b
 }
