@@ -3,9 +3,10 @@ package dockertest
 import (
 	"errors"
 	"fmt"
-	"github.com/docker/go-connections/nat"
 	"strings"
 	"time"
+
+	"github.com/docker/go-connections/nat"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/container"

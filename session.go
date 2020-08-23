@@ -177,6 +177,7 @@ func (dt *Session) WriteContainerLogs(w io.Writer, container ...*Container) {
 			fmt.Printf("error writing container '%s' log: %v", c.Name, err)
 			continue
 		}
+
 		writeLog(w, c, log)
 	}
 }

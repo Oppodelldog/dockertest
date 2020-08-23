@@ -3,6 +3,7 @@ package dockertest
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"io/ioutil"
@@ -13,6 +14,8 @@ import (
 )
 
 const dumpFileMask = 0655
+
+var ErrReadingContainerLog = errors.New("error reading container log")
 
 func dumpInspectContainter(ctx context.Context, dockerClient *client.Client, container *Container, logDir string) {
 	inspectJSON, err := dockerClient.ContainerInspect(ctx, container.containerBody.ID)
@@ -62,14 +65,12 @@ func getContainerLog(ctx context.Context, dockerClient *client.Client, container
 		types.ContainerLogsOptions{ShowStderr: true, ShowStdout: true},
 	)
 	if err != nil {
-
-		return nil, fmt.Errorf("error reading container log for '%s': %v\n", containerID, err)
+		return nil, fmt.Errorf("%w for '%s': %v", ErrReadingContainerLog, containerID, err)
 	}
 
 	log, err := ioutil.ReadAll(logReader)
 	if err != nil {
-
-		return nil, fmt.Errorf("error reading container log stream for '%s': %v\n", containerID, err)
+		return nil, fmt.Errorf("%w stream for '%s': %v", ErrReadingContainerLog, containerID, err)
 	}
 
 	return log, nil
