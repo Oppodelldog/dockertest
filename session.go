@@ -169,6 +169,13 @@ func (dt *Session) DumpContainerLogsToDir(container ...*Container) {
 	}
 }
 
+// DumpContainerHealthCheckLogsToDir dumps the healthCheck logs of one or multiple containers to the log directory.
+func (dt *Session) DumpContainerHealthCheckLogsToDir(container ...*Container) {
+	for _, c := range container {
+		dumpContainerHealthCheckLog(dt.ctx, dt.dockerClient, c, dt.logDir)
+	}
+}
+
 // WriteContainerLogs writes the log of the given containers.
 func (dt *Session) WriteContainerLogs(w io.Writer, container ...*Container) {
 	for _, c := range container {
