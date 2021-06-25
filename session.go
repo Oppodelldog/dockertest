@@ -114,6 +114,24 @@ func (dt *Session) NotifyContainerHealthy(container *Container, timeout time.Dur
 	return healthErr
 }
 
+// NotifyContainerLogContains returns a channel that blocks until the given
+// search string was found in the containers log output.
+func (dt *Session) NotifyContainerLogContains(container *Container, timeout time.Duration, search string) chan error {
+	logContainsErr := make(chan error)
+
+	go func() {
+		ctxTimeout, cancel := context.WithTimeout(dt.ctx, timeout)
+		defer cancel()
+
+		if err := waitForContainerLog(ctxTimeout, search, dt.dockerClient, container.containerBody.ID); err != nil {
+			logContainsErr <- fmt.Errorf("error parsing log: %s", err)
+		}
+		logContainsErr <- nil
+	}()
+
+	return logContainsErr
+}
+
 // Cleanup removes all resources (like containers/networks) used for this session.
 func (dt *Session) Cleanup() {
 	ctx, cancel := context.WithTimeout(context.Background(), cleanerTimeout)

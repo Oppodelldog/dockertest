@@ -1,10 +1,13 @@
 package dockertest
 
 import (
+	"bufio"
 	"context"
+	"errors"
 	"fmt"
 	"reflect"
 	"runtime"
+	"strings"
 	"time"
 
 	"github.com/docker/docker/api/types"
@@ -45,4 +48,28 @@ func waitForContainer(
 			time.Sleep(pollingPause)
 		}
 	}
+}
+
+func waitForContainerLog(ctx context.Context, search string, dockerClient *client.Client, containerID string) error {
+	var logOpts = types.ContainerLogsOptions{
+		ShowStdout: true,
+		ShowStderr: true,
+		Follow:     true,
+	}
+
+	reader, err := dockerClient.ContainerLogs(ctx, containerID, logOpts)
+	if err != nil {
+		return err
+	}
+
+	defer reader.Close()
+
+	scanner := bufio.NewScanner(reader)
+	for scanner.Scan() {
+		if strings.Contains(scanner.Text(), search) {
+			return nil
+		}
+	}
+
+	return errors.New("log stream closed")
 }
