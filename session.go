@@ -182,6 +182,7 @@ func (dt *Session) WriteContainerLogs(w io.Writer, container ...*Container) {
 		log, err := getContainerLog(dt.ctx, dt.dockerClient, c)
 		if err != nil {
 			fmt.Printf("error writing container '%s' log: %v", c.Name, err)
+
 			continue
 		}
 
