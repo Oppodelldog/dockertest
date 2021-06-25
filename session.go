@@ -83,6 +83,7 @@ func (dt *Session) NotifyContainerExit(container *Container, timeout time.Durati
 	go func() {
 		ctxTimeout, cancel := context.WithTimeout(dt.ctx, timeout)
 		defer cancel()
+		defer close(exitedCh)
 
 		if !waitForContainer(ctxTimeout, containerHasFadeAway, dt.dockerClient, container.containerBody.ID) {
 			err := dt.dockerClient.ContainerKill(context.Background(), container.containerBody.ID, "kill")
@@ -104,6 +105,7 @@ func (dt *Session) NotifyContainerHealthy(container *Container, timeout time.Dur
 	go func() {
 		ctxTimeout, cancel := context.WithTimeout(dt.ctx, timeout)
 		defer cancel()
+		defer close(healthErr)
 
 		if !waitForContainer(ctxTimeout, containerIsHealthy, dt.dockerClient, container.containerBody.ID) {
 			healthErr <- fmt.Errorf("%w. timed out after %s", ErrContainerStartTimeout, timeout)
@@ -122,6 +124,7 @@ func (dt *Session) NotifyContainerLogContains(container *Container, timeout time
 	go func() {
 		ctxTimeout, cancel := context.WithTimeout(dt.ctx, timeout)
 		defer cancel()
+		defer close(logContainsErr)
 
 		if err := waitForContainerLog(ctxTimeout, search, dt.dockerClient, container.containerBody.ID); err != nil {
 			logContainsErr <- fmt.Errorf("error parsing log: %s", err)
