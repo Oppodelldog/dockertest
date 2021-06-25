@@ -113,6 +113,12 @@ func (b *ContainerBuilder) Cmd(cmd string) *ContainerBuilder {
 	return b
 }
 
+// CmdArgs sets the command that is executed when the container starts.
+func (b *ContainerBuilder) CmdArgs(args ...string) *ContainerBuilder {
+	b.ContainerConfig.Cmd = args
+	return b
+}
+
 //Name defines the container name.
 func (b *ContainerBuilder) Name(s string) *ContainerBuilder {
 	b.originalName = s
