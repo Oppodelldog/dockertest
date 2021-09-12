@@ -3,6 +3,7 @@ package ports_test
 import (
 	"net"
 	"testing"
+	"time"
 
 	"github.com/Oppodelldog/dockertest"
 )
@@ -16,7 +17,7 @@ func TestExposeBindPorts(t *testing.T) {
 	cnt, err := s.NewContainerBuilder().
 		Name("test-container").
 		Image("busybox").
-		Cmd("nc -l -p 15000").
+		Cmd("nc -v -l -p 15000").
 		ExposePort("15000/tcp").
 		BindPort("15000/tcp", "15000").
 		Build()
@@ -24,6 +25,8 @@ func TestExposeBindPorts(t *testing.T) {
 
 	err = cnt.Start()
 	failOnError(t, err)
+
+	failOnError(t, <-s.NotifyContainerLogContains(cnt, time.Second*10, "listening on"))
 
 	c, err := net.Dial("tcp", "localhost:15000")
 	failOnError(t, err)
