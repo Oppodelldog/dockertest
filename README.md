@@ -121,7 +121,7 @@ func cancelSessionOnSigTerm(session *dockertest.Session) {
 	session.Cancel()
 }
 
-// it is always a good practise to use defer.
+// it is always a good practise to clean up.
 func cleanup(test *dockertest.Session, testResult *TestResult) {
 	fmt.Println("CLEANUP-START")
 	test.Cleanup()
