@@ -83,6 +83,7 @@ func (dt *Session) NotifyContainerExit(container *Container, timeout time.Durati
 	go func() {
 		ctxTimeout, cancel := context.WithTimeout(dt.ctx, timeout)
 		defer cancel()
+		defer close(exitedCh)
 
 		if !waitForContainer(ctxTimeout, containerHasFadeAway, dt.dockerClient, container.containerBody.ID) {
 			err := dt.dockerClient.ContainerKill(context.Background(), container.containerBody.ID, "kill")
@@ -104,6 +105,7 @@ func (dt *Session) NotifyContainerHealthy(container *Container, timeout time.Dur
 	go func() {
 		ctxTimeout, cancel := context.WithTimeout(dt.ctx, timeout)
 		defer cancel()
+		defer close(healthErr)
 
 		if !waitForContainer(ctxTimeout, containerIsHealthy, dt.dockerClient, container.containerBody.ID) {
 			healthErr <- fmt.Errorf("%w. timed out after %s", ErrContainerStartTimeout, timeout)
@@ -112,6 +114,25 @@ func (dt *Session) NotifyContainerHealthy(container *Container, timeout time.Dur
 	}()
 
 	return healthErr
+}
+
+// NotifyContainerLogContains returns a channel that blocks until the given
+// search string was found in the containers log output.
+func (dt *Session) NotifyContainerLogContains(container *Container, timeout time.Duration, search string) chan error {
+	logContainsErr := make(chan error)
+
+	go func() {
+		ctxTimeout, cancel := context.WithTimeout(dt.ctx, timeout)
+		defer cancel()
+		defer close(logContainsErr)
+
+		if err := waitForContainerLog(ctxTimeout, search, dt.dockerClient, container.containerBody.ID); err != nil {
+			logContainsErr <- fmt.Errorf("error parsing log: %s", err)
+		}
+		logContainsErr <- nil
+	}()
+
+	return logContainsErr
 }
 
 // Cleanup removes all resources (like containers/networks) used for this session.
@@ -169,12 +190,20 @@ func (dt *Session) DumpContainerLogsToDir(container ...*Container) {
 	}
 }
 
+// DumpContainerHealthCheckLogsToDir dumps the healthCheck logs of one or multiple containers to the log directory.
+func (dt *Session) DumpContainerHealthCheckLogsToDir(container ...*Container) {
+	for _, c := range container {
+		dumpContainerHealthCheckLog(dt.ctx, dt.dockerClient, c, dt.logDir)
+	}
+}
+
 // WriteContainerLogs writes the log of the given containers.
 func (dt *Session) WriteContainerLogs(w io.Writer, container ...*Container) {
 	for _, c := range container {
 		log, err := getContainerLog(dt.ctx, dt.dockerClient, c)
 		if err != nil {
 			fmt.Printf("error writing container '%s' log: %v", c.Name, err)
+
 			continue
 		}
 

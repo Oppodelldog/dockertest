@@ -104,12 +104,21 @@ func (b *ContainerBuilder) Connect(n *Network) *ContainerBuilder {
 // Mount creates a volume binding to mount a local directory into the container.
 func (b *ContainerBuilder) Mount(localPath string, containerPath string) *ContainerBuilder {
 	b.HostConfig.Binds = append(b.HostConfig.Binds, fmt.Sprintf("%s:%s", localPath, containerPath))
+
 	return b
 }
 
 // Cmd sets the command that is executed when the container starts.
 func (b *ContainerBuilder) Cmd(cmd string) *ContainerBuilder {
 	b.ContainerConfig.Cmd = strings.Split(cmd, " ")
+
+	return b
+}
+
+// CmdArgs sets the command that is executed when the container starts.
+func (b *ContainerBuilder) CmdArgs(args ...string) *ContainerBuilder {
+	b.ContainerConfig.Cmd = args
+
 	return b
 }
 
@@ -128,12 +137,14 @@ func (b *ContainerBuilder) Name(s string) *ContainerBuilder {
 //AutoRemove tells the docker daemon to remove the container after it exits.
 func (b *ContainerBuilder) AutoRemove(v bool) *ContainerBuilder {
 	b.HostConfig.AutoRemove = v
+
 	return b
 }
 
 //Image sets the docker image to start a container from.
 func (b *ContainerBuilder) Image(image string) *ContainerBuilder {
 	b.ContainerConfig.Image = image
+
 	return b
 }
 
