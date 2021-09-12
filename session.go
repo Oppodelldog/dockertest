@@ -63,7 +63,9 @@ func panicOnError(err error) {
 // SetLogDir sets the directory for log files creating during test execution.
 // When calling it will directly ensure the path.
 func (dt *Session) SetLogDir(logDir string) {
-	err := os.MkdirAll(logDir, 0777)
+	const perm = 0777
+
+	err := os.MkdirAll(logDir, perm)
 	panicOnError(err)
 
 	dt.logDir = logDir

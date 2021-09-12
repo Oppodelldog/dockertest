@@ -218,7 +218,7 @@ func (b *ContainerBuilder) WorkingDir(wd string) *ContainerBuilder {
 }
 
 // Dns adds a dns server to the container.
-// nolint: golint, stylecheck
+// nolint: golint
 func (b *ContainerBuilder) Dns(dnsServerIP string) *ContainerBuilder {
 	b.HostConfig.DNS = append(b.HostConfig.DNS, dnsServerIP)
 

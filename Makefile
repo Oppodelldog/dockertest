@@ -3,6 +3,7 @@ ensure-bin:
 	[ -d .bin ] || mkdir .bin
 
 setup: ensure-bin ## Install tools
+	go get golang.org/x/tools/cmd/goimports
 	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.27.0
 	mv bin/golangci-lint .bin/golangci-lint && rm -rf bin
 

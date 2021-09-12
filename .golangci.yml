@@ -20,4 +20,9 @@ linters:
     - typecheck
     - gochecknoglobals
     - testpackage
+    - exhaustivestruct
+    - forcetypeassert
+    - gofumpt
+    - gci
+    - wrapcheck
   fast: false

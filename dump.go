@@ -6,11 +6,12 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/docker/docker/pkg/stdcopy"
 	"io"
 	"io/ioutil"
 	"path"
 	"strings"
+
+	"github.com/docker/docker/pkg/stdcopy"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
@@ -125,7 +126,8 @@ func getContainerLog(ctx context.Context, dockerClient *client.Client, container
 		return nil, fmt.Errorf("%w for '%s': %v", ErrReadingContainerLog, containerID, err)
 	}
 
-	log := bytes.NewBufferString("")
+	var log = bytes.NewBufferString("")
+
 	_, err = stdcopy.StdCopy(log, log, logReader)
 	if err != nil {
 		return nil, fmt.Errorf("%w stream for '%s': %v", ErrReadingContainerLog, containerID, err)
