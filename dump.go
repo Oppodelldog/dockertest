@@ -1,10 +1,12 @@
 package dockertest
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/docker/docker/pkg/stdcopy"
 	"io"
 	"io/ioutil"
 	"path"
@@ -68,12 +70,13 @@ func getContainerLog(ctx context.Context, dockerClient *client.Client, container
 		return nil, fmt.Errorf("%w for '%s': %v", ErrReadingContainerLog, containerID, err)
 	}
 
-	log, err := ioutil.ReadAll(logReader)
+	log := bytes.NewBufferString("")
+	_, err = stdcopy.StdCopy(log, log, logReader)
 	if err != nil {
 		return nil, fmt.Errorf("%w stream for '%s': %v", ErrReadingContainerLog, containerID, err)
 	}
 
-	return log, nil
+	return log.Bytes(), nil
 }
 
 func writeLog(w io.Writer, c *Container, log []byte) {
