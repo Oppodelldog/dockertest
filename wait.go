@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"io"
 	"reflect"
 	"runtime"
 	"strings"
@@ -13,6 +14,8 @@ import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/client"
 )
+
+var ErrClosedWithoutFinding = errors.New("log stream closed without finding")
 
 var pollingPause = 1000 * time.Millisecond
 
@@ -62,7 +65,9 @@ func waitForContainerLog(ctx context.Context, search string, dockerClient *clien
 		return err
 	}
 
-	defer reader.Close()
+	defer func(reader io.ReadCloser) {
+		_ = reader.Close()
+	}(reader)
 
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
@@ -71,5 +76,5 @@ func waitForContainerLog(ctx context.Context, search string, dockerClient *clien
 		}
 	}
 
-	return errors.New("log stream closed")
+	return fmt.Errorf("%w '%s'", ErrClosedWithoutFinding, search)
 }

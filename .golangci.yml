@@ -25,4 +25,5 @@ linters:
     - gofumpt
     - gci
     - wrapcheck
+    - forbidigo
   fast: false

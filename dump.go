@@ -98,7 +98,7 @@ func getContainerHealthCheckLog(ctx context.Context,
 
 	inspectJSON, err := dockerClient.ContainerInspect(ctx, containerID)
 	if err != nil {
-		return nil, fmt.Errorf("error reading container healthcheck log for '%s': %v\n", containerID, err)
+		return nil, fmt.Errorf("error reading container healthcheck log for '%s': %w", containerID, err)
 	}
 
 	for _, result := range inspectJSON.State.Health.Log {

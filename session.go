@@ -46,7 +46,7 @@ func NewSession() (*Session, error) {
 	}, nil
 }
 
-//Session is the main object when starting a docker driven container test.
+// Session is the main object when starting a docker driven container test.
 type Session struct {
 	ID        string
 	logDir    string
@@ -129,7 +129,7 @@ func (dt *Session) NotifyContainerLogContains(container *Container, timeout time
 		defer close(logContainsErr)
 
 		if err := waitForContainerLog(ctxTimeout, search, dt.dockerClient, container.containerBody.ID); err != nil {
-			logContainsErr <- fmt.Errorf("error parsing log: %s", err)
+			logContainsErr <- fmt.Errorf("error parsing log: %w", err)
 		}
 		logContainsErr <- nil
 	}()

@@ -17,6 +17,7 @@ test: ## Run all the tests
 
 functional-test:
 	go run examples/api/main.go
+	go test -race examples/ports/ports_test.go
 
 ci: functional-test
 
