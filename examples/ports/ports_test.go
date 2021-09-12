@@ -1,9 +1,10 @@
 package ports_test
 
 import (
-	"github.com/Oppodelldog/dockertest"
 	"net"
 	"testing"
+
+	"github.com/Oppodelldog/dockertest"
 )
 
 func TestExposeBindPorts(t *testing.T) {
