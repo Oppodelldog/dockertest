@@ -244,12 +244,29 @@ func (b *ContainerBuilder) Link(container *Container, alias string, n *Network) 
 }
 
 // Port bind a Host port to a container port.
+// Deprecated use BindPort
 func (b *ContainerBuilder) Port(containerPort, hostPort string) *ContainerBuilder {
+	return b.BindPort(containerPort, hostPort)
+}
+
+// BindPort bind a Host port to a container port.
+func (b *ContainerBuilder) BindPort(containerPort, hostPort string) *ContainerBuilder {
 	b.HostConfig.PortBindings = nat.PortMap{
 		nat.Port(containerPort): []nat.PortBinding{
 			{HostIP: "0.0.0.0", HostPort: hostPort},
 		},
 	}
+
+	return b
+}
+
+// ExposePort exposes a containers port inside the docker network. eg. "80/tcp"
+func (b *ContainerBuilder) ExposePort(port string) *ContainerBuilder {
+	if b.ContainerConfig.ExposedPorts == nil {
+		b.ContainerConfig.ExposedPorts = map[nat.Port]struct{}{}
+	}
+
+	b.ContainerConfig.ExposedPorts[nat.Port(port)] = struct{}{}
 
 	return b
 }
