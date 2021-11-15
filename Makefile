@@ -16,6 +16,7 @@ test: ## Run all the tests
 	go list ./... | xargs -n1 -I{} sh -c 'go test -race {}'
 
 functional-test:
+	docker version
 	go run examples/api/main.go
 	go test -race examples/ports/ports_test.go
 
