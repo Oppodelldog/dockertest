@@ -66,8 +66,11 @@ func waitForContainerLog(ctx context.Context, search string, dockerClient *clien
 
 	defer reader.Close()
 
-	var buffer = strings.Builder{}
-	scanner := bufio.NewScanner(reader)
+	var (
+		buffer  = strings.Builder{}
+		scanner = bufio.NewScanner(reader)
+	)
+
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), search) {
 			return nil
