@@ -14,6 +14,8 @@ import (
 	"github.com/docker/docker/client"
 )
 
+var ErrClosedWithoutFinding = errors.New("log stream closed without finding")
+
 var pollingPause = 1000 * time.Millisecond
 
 type waitForContainerFunc func(inspectResult types.ContainerJSON, inspectError error) bool
@@ -74,5 +76,5 @@ func waitForContainerLog(ctx context.Context, search string, dockerClient *clien
 		}
 	}
 
-	return errors.New(fmt.Sprintf("log stream closed (output: %v)\n", buffer.String()))
+	return fmt.Errorf("%w '%s' (output: %s)", ErrClosedWithoutFinding, search, buffer.String())
 }

@@ -122,7 +122,7 @@ func (b *ContainerBuilder) CmdArgs(args ...string) *ContainerBuilder {
 	return b
 }
 
-//Name defines the container name.
+// Name defines the container name.
 func (b *ContainerBuilder) Name(s string) *ContainerBuilder {
 	b.originalName = s
 	b.ContainerName = s
@@ -134,21 +134,21 @@ func (b *ContainerBuilder) Name(s string) *ContainerBuilder {
 	return b
 }
 
-//AutoRemove tells the docker daemon to remove the container after it exits.
+// AutoRemove tells the docker daemon to remove the container after it exits.
 func (b *ContainerBuilder) AutoRemove(v bool) *ContainerBuilder {
 	b.HostConfig.AutoRemove = v
 
 	return b
 }
 
-//Image sets the docker image to start a container from.
+// Image sets the docker image to start a container from.
 func (b *ContainerBuilder) Image(image string) *ContainerBuilder {
 	b.ContainerConfig.Image = image
 
 	return b
 }
 
-//HealthDisable disabled the health check.
+// HealthDisable disabled the health check.
 func (b *ContainerBuilder) HealthDisable() *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Test = []string{"NONE"}
@@ -156,7 +156,7 @@ func (b *ContainerBuilder) HealthDisable() *ContainerBuilder {
 	return b
 }
 
-//HealthCmd sets a command that is executed directly.
+// HealthCmd sets a command that is executed directly.
 func (b *ContainerBuilder) HealthCmd(cmd string) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Test = []string{"CMD", cmd}
@@ -164,8 +164,8 @@ func (b *ContainerBuilder) HealthCmd(cmd string) *ContainerBuilder {
 	return b
 }
 
-//HealthShellCmd sets a command that is executed in the containers default shell
-//to determine if the container is healthy.
+// HealthShellCmd sets a command that is executed in the containers default shell
+// to determine if the container is healthy.
 func (b *ContainerBuilder) HealthShellCmd(cmd string) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Test = []string{"CMD-SHELL", cmd}
@@ -173,7 +173,7 @@ func (b *ContainerBuilder) HealthShellCmd(cmd string) *ContainerBuilder {
 	return b
 }
 
-//HealthTimeout sets the timeout to wait before considering the check to have hung.
+// HealthTimeout sets the timeout to wait before considering the check to have hung.
 func (b *ContainerBuilder) HealthTimeout(t time.Duration) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Timeout = t
@@ -181,7 +181,7 @@ func (b *ContainerBuilder) HealthTimeout(t time.Duration) *ContainerBuilder {
 	return b
 }
 
-//HealthInterval sets the time to wait between checks.
+// HealthInterval sets the time to wait between checks.
 func (b *ContainerBuilder) HealthInterval(d time.Duration) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Interval = d
@@ -189,7 +189,7 @@ func (b *ContainerBuilder) HealthInterval(d time.Duration) *ContainerBuilder {
 	return b
 }
 
-//HealthRetries sets the number of consecutive failures needed to consider a container as unhealthy.
+// HealthRetries sets the number of consecutive failures needed to consider a container as unhealthy.
 func (b *ContainerBuilder) HealthRetries(r int) *ContainerBuilder {
 	b.ensureHealth()
 	b.ContainerConfig.Healthcheck.Retries = r
@@ -203,7 +203,7 @@ func (b *ContainerBuilder) ensureHealth() {
 	}
 }
 
-//Env defines an environment variable that will be set in the container.
+// Env defines an environment variable that will be set in the container.
 func (b *ContainerBuilder) Env(name string, value string) *ContainerBuilder {
 	b.ContainerConfig.Env = append(b.ContainerConfig.Env, fmt.Sprintf("%s=%s", name, value))
 
@@ -218,7 +218,7 @@ func (b *ContainerBuilder) WorkingDir(wd string) *ContainerBuilder {
 }
 
 // Dns adds a dns server to the container.
-// nolint: golint
+// nolint: golint, revive, stylecheck
 func (b *ContainerBuilder) Dns(dnsServerIP string) *ContainerBuilder {
 	b.HostConfig.DNS = append(b.HostConfig.DNS, dnsServerIP)
 
@@ -244,7 +244,7 @@ func (b *ContainerBuilder) Link(container *Container, alias string, n *Network) 
 }
 
 // Port bind a Host port to a container port.
-// Deprecated use BindPort
+// Deprecated: use BindPort instead.
 func (b *ContainerBuilder) Port(containerPort, hostPort string) *ContainerBuilder {
 	return b.BindPort(containerPort, hostPort)
 }
@@ -260,7 +260,7 @@ func (b *ContainerBuilder) BindPort(containerPort, hostPort string) *ContainerBu
 	return b
 }
 
-// ExposePort exposes a containers port inside the docker network. eg. "80/tcp"
+// ExposePort exposes a containers port inside the docker network - for example "80/tcp".
 func (b *ContainerBuilder) ExposePort(port string) *ContainerBuilder {
 	if b.ContainerConfig.ExposedPorts == nil {
 		b.ContainerConfig.ExposedPorts = map[nat.Port]struct{}{}

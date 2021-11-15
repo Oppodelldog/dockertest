@@ -4,7 +4,7 @@ ensure-bin:
 
 setup: ensure-bin ## Install tools
 	go get golang.org/x/tools/cmd/goimports
-	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.27.0
+	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | bash -s v1.41.0
 	mv bin/golangci-lint .bin/golangci-lint && rm -rf bin
 
 lint: ## Run the linters
@@ -17,6 +17,7 @@ test: ## Run all the tests
 
 functional-test:
 	go run examples/api/main.go
+	go test -race examples/ports/ports_test.go
 
 ci: functional-test
 
