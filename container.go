@@ -79,7 +79,6 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 		b.ContainerConfig,
 		b.HostConfig,
 		b.NetworkingConfig,
-		nil,
 		b.ContainerName,
 	)
 	if err != nil {
