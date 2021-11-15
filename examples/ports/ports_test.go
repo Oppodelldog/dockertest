@@ -13,7 +13,6 @@ func TestExposeBindPorts(t *testing.T) {
 	failOnError(t, err)
 
 	defer func() { s.Cleanup() }()
-
 	cnt, err := s.NewContainerBuilder().
 		Name("test-container").
 		Image("busybox").
@@ -27,6 +26,8 @@ func TestExposeBindPorts(t *testing.T) {
 	failOnError(t, err)
 
 	failOnError(t, <-s.NotifyContainerLogContains(cnt, time.Second*10, "listening on"))
+
+	time.Sleep(1 * time.Second)
 
 	c, err := net.Dial("tcp", "localhost:15000")
 	failOnError(t, err)
