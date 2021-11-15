@@ -20,6 +20,8 @@ import (
 const dumpFileMask = 0655
 
 var ErrReadingContainerLog = errors.New("error reading container log")
+var ErrStateNotSet = errors.New("inspectJSON.State is nil")
+var ErrStateHealthNotSet = errors.New("inspectJSON.State.Health is nil")
 
 func dumpInspectContainter(ctx context.Context, dockerClient *client.Client, container *Container, logDir string) {
 	inspectJSON, err := dockerClient.ContainerInspect(ctx, container.containerBody.ID)
@@ -99,6 +101,14 @@ func getContainerHealthCheckLog(ctx context.Context,
 	inspectJSON, err := dockerClient.ContainerInspect(ctx, containerID)
 	if err != nil {
 		return nil, fmt.Errorf("error reading container healthcheck log for '%s': %w", containerID, err)
+	}
+
+	if inspectJSON.State == nil {
+		return nil, fmt.Errorf("error reading container healthcheck log for '%s': %w", containerID, ErrStateNotSet)
+	}
+
+	if inspectJSON.State.Health == nil {
+		return nil, fmt.Errorf("error reading container healthcheck log for '%s': %w", containerID, ErrStateHealthNotSet)
 	}
 
 	for _, result := range inspectJSON.State.Health.Log {
