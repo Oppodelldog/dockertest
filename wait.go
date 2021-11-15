@@ -64,12 +64,15 @@ func waitForContainerLog(ctx context.Context, search string, dockerClient *clien
 
 	defer reader.Close()
 
+	var buffer = strings.Builder{}
 	scanner := bufio.NewScanner(reader)
 	for scanner.Scan() {
 		if strings.Contains(scanner.Text(), search) {
 			return nil
+		} else {
+			buffer.WriteString(scanner.Text() + "\n")
 		}
 	}
 
-	return errors.New("log stream closed")
+	return errors.New(fmt.Sprintf("log stream closed (output: %v)\n", buffer.String()))
 }
