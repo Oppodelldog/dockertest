@@ -40,7 +40,7 @@ func main() {
 	panicOnErr(err)
 
 	basicConfiguration := test.NewContainerBuilder().
-		Image("golang:1.16.8").
+		Image("golang:1.19.0").
 		Connect(net).
 		WorkingDir("/app/examples/api").
 		Mount(projectDir, "/app")
