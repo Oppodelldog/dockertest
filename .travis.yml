@@ -17,6 +17,6 @@ services:
   - docker
 
 script:
-  - docker pull golang:1.16.8
+  - docker pull golang:1.19.0
   - docker pull busybox:latest
   - make ci
