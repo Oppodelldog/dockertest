@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
+	"os"
 	"path"
 	"strings"
 
@@ -39,7 +39,7 @@ func dumpInspectContainter(ctx context.Context, dockerClient *client.Client, con
 	fileName := fmt.Sprintf("%s.json", container.Name)
 	logFilename := path.Join(logDir, fileName)
 
-	err = ioutil.WriteFile(logFilename, b, dumpFileMask)
+	err = os.WriteFile(logFilename, b, dumpFileMask)
 	if err != nil {
 		fmt.Printf("error writing inspect result to file '%s': %v\n", logFilename, err)
 
@@ -58,7 +58,7 @@ func dumpContainerLog(ctx context.Context, dockerClient *client.Client, containe
 	fileName := fmt.Sprintf("%s.txt", container.Name)
 	logFilename := path.Join(logDir, fileName)
 
-	err = ioutil.WriteFile(logFilename, log, dumpFileMask)
+	err = os.WriteFile(logFilename, log, dumpFileMask)
 	if err != nil {
 		fmt.Printf("error writing container log to file '%s': %v\n", logFilename, err)
 
@@ -81,7 +81,7 @@ func dumpContainerHealthCheckLog(ctx context.Context,
 	fileName := fmt.Sprintf("%s-healthcheck.txt", container.Name)
 	logFilename := path.Join(logDir, fileName)
 
-	err = ioutil.WriteFile(logFilename, log, dumpFileMask)
+	err = os.WriteFile(logFilename, log, dumpFileMask)
 	if err != nil {
 		fmt.Printf("error writing container healtcheck log to file '%s': %v\n", logFilename, err)
 

@@ -2,7 +2,7 @@ package tests
 
 import (
 	"fmt"
-	"io/ioutil"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -23,7 +23,7 @@ func TestApi(t *testing.T) {
 		}
 	}()
 
-	content, err := ioutil.ReadAll(resp.Body)
+	content, err := io.ReadAll(resp.Body)
 	failOnError(t, err)
 
 	if string(content) != "" {
@@ -52,7 +52,7 @@ func TestApi(t *testing.T) {
 	resp, err = http.Get(apiBaseURL())
 	failOnError(t, err)
 
-	content, err = ioutil.ReadAll(resp.Body)
+	content, err = io.ReadAll(resp.Body)
 	failOnError(t, err)
 
 	if string(content) != someName {
