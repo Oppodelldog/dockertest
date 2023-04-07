@@ -3,7 +3,7 @@ module github.com/Oppodelldog/dockertest
 go 1.17
 
 require (
-	github.com/docker/docker v20.10.17+incompatible
+	github.com/docker/docker v20.10.24+incompatible
 	github.com/docker/go-connections v0.4.0
 	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826
 )
