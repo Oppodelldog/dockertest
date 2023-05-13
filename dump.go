@@ -133,14 +133,14 @@ func getContainerLog(ctx context.Context, dockerClient *client.Client, container
 		types.ContainerLogsOptions{ShowStderr: true, ShowStdout: true},
 	)
 	if err != nil {
-		return nil, fmt.Errorf("%w for '%s': %v", ErrReadingContainerLog, containerID, err)
+		return nil, fmt.Errorf("%w for '%s': %w", ErrReadingContainerLog, containerID, err)
 	}
 
 	var log = bytes.NewBufferString("")
 
 	_, err = stdcopy.StdCopy(log, log, logReader)
 	if err != nil {
-		return nil, fmt.Errorf("%w stream for '%s': %v", ErrReadingContainerLog, containerID, err)
+		return nil, fmt.Errorf("%w stream for '%s': %w", ErrReadingContainerLog, containerID, err)
 	}
 
 	return log.Bytes(), nil

@@ -38,7 +38,7 @@ func (c Container) Start() error {
 func (c Container) ExitCode() (int, error) {
 	inspectResult, inspectError := c.dockerClient.ContainerInspect(c.ctx, c.containerBody.ID)
 	if inspectError != nil {
-		return -1, fmt.Errorf("%w: %v", ErrInspectingContainer, inspectError)
+		return -1, fmt.Errorf("%w: %w", ErrInspectingContainer, inspectError)
 	}
 
 	if inspectResult.State.Running {

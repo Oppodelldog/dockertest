@@ -8,5 +8,4 @@
 // But it also helps in orchestrating the tests and finally in cleaning up.
 //
 // To get started take a look in the main.go file in the examples folder, it's self explanatory.
-//
 package dockertest
