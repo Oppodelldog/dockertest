@@ -38,3 +38,5 @@ linters:
     - unused
     - varcheck
   fast: false
+  disable:
+    - paralleltest

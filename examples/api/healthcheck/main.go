@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"net/http"
 	"os"
 	"time"
@@ -20,15 +21,19 @@ func getBaseURL() string {
 
 func main() {
 	http.DefaultClient.Timeout = clientTimeout
+	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+	defer cancel()
 
-	r, err := http.DefaultClient.Get(getBaseURL())
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getBaseURL(), nil)
 	if err != nil {
 		os.Exit(1)
 	}
 
-	defer func() { _ = r.Body.Close() }()
+	resp, err := http.DefaultClient.Do(req)
 
-	if r.StatusCode != http.StatusOK {
-		os.Exit(unhealthyExitCode)
+	defer func() { _ = resp.Body.Close() }()
+
+	if resp.StatusCode != http.StatusOK {
+		defer os.Exit(unhealthyExitCode)
 	}
 }

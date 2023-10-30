@@ -1,6 +1,7 @@
 package tests
 
 import (
+	"context"
 	"fmt"
 	"io"
 	"net/http"
@@ -15,7 +16,10 @@ const someName = "Kermit"
 // see examples/api/main.go:60
 func TestApi(t *testing.T) {
 	t.Logf("running tests against: %s", apiBaseURL())
-	resp, err := http.Get(apiBaseURL())
+	ctx := context.Background()
+	reqGET, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBaseURL(), nil)
+	failOnError(t, err)
+	resp, err := http.DefaultClient.Do(reqGET)
 	failOnError(t, err)
 
 	defer func() {
@@ -32,29 +36,31 @@ func TestApi(t *testing.T) {
 		t.Fatalf("Did expect and empty result for get in the first call, but got: %v", string(content))
 	}
 
-	var req *http.Request
-	req, err = http.NewRequest("PUT", fmt.Sprintf("%s/%s", apiBaseURL(), someName), nil)
+	var reqPUT *http.Request
+	reqPUT, err = http.NewRequestWithContext(ctx, http.MethodPut, fmt.Sprintf("%s/%s", apiBaseURL(), someName), nil)
 	failOnError(t, err)
 
-	resp, err = http.DefaultClient.Do(req)
+	resp1, err := http.DefaultClient.Do(reqPUT)
 	failOnError(t, err)
 
 	defer func() {
-		err := resp.Body.Close()
+		err := resp1.Body.Close()
 		if err != nil {
 			t.Fatalf("Error closing response body: %v", err)
 		}
 	}()
 
 	expectedStatusCode := http.StatusOK
-	if resp.StatusCode != expectedStatusCode {
+	if resp1.StatusCode != expectedStatusCode {
 		t.Fatalf("Expected status code to be %v, but got: %v", expectedStatusCode, resp.StatusCode)
 	}
 
-	resp, err = http.Get(apiBaseURL())
+	reqGET2, err := http.NewRequestWithContext(ctx, http.MethodGet, apiBaseURL(), nil)
+	failOnError(t, err)
+	resp2, err := http.DefaultClient.Do(reqGET2)
 	failOnError(t, err)
 
-	content, err = io.ReadAll(resp.Body)
+	content, err = io.ReadAll(resp2.Body)
 	failOnError(t, err)
 
 	if string(content) != someName {

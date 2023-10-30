@@ -9,7 +9,7 @@ import (
 var storage []string
 
 func main() {
-	err := http.ListenAndServe("0.0.0.0:8080", http.HandlerFunc(
+	err := http.ListenAndServe("0.0.0.0:8080", http.HandlerFunc( //nolint:gosec
 		func(w http.ResponseWriter, r *http.Request) {
 			switch r.Method {
 			case http.MethodGet:

@@ -64,7 +64,9 @@ func waitForContainerLog(ctx context.Context, search string, dockerClient *clien
 		return err
 	}
 
-	defer reader.Close()
+	defer func() {
+		_ = reader.Close()
+	}()
 
 	var (
 		buffer  = strings.Builder{}
