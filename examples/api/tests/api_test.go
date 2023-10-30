@@ -11,6 +11,8 @@ import (
 const defaultBaseAPIURL = "http://localhost:8080"
 const someName = "Kermit"
 
+// this test is called in functional-tests, it will fail calling it directly missing necessary setup.
+// see examples/api/main.go:60
 func TestApi(t *testing.T) {
 	t.Logf("running tests against: %s", apiBaseURL())
 	resp, err := http.Get(apiBaseURL())

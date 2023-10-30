@@ -24,7 +24,7 @@ var ErrStateNotSet = errors.New("inspectJSON.State is nil")
 var ErrStateHealthNotSet = errors.New("inspectJSON.State.Health is nil")
 
 func dumpInspectContainter(ctx context.Context, dockerClient *client.Client, container *Container, logDir string) {
-	inspectJSON, err := dockerClient.ContainerInspect(ctx, container.containerBody.ID)
+	inspectJSON, err := dockerClient.ContainerInspect(ctx, container.containerID)
 	if err != nil {
 		panicOnError(err)
 	}
@@ -94,7 +94,7 @@ func getContainerHealthCheckLog(ctx context.Context,
 	container *Container,
 ) ([]byte, error) {
 	var (
-		containerID = container.containerBody.ID
+		containerID = container.containerID
 		sb          = strings.Builder{}
 	)
 
@@ -125,7 +125,7 @@ func getContainerHealthCheckLog(ctx context.Context,
 }
 
 func getContainerLog(ctx context.Context, dockerClient *client.Client, container *Container) ([]byte, error) {
-	containerID := container.containerBody.ID
+	containerID := container.containerID
 
 	logReader, err := dockerClient.ContainerLogs(
 		ctx,

@@ -22,21 +22,21 @@ var ErrInspectingContainer = errors.New("error inspecting container")
 
 // Container is a access wrapper for a docker container.
 type Container struct {
-	Name          string
-	startOptions  types.ContainerStartOptions
-	containerBody container.ContainerCreateCreatedBody
+	Name         string
+	startOptions types.ContainerStartOptions
+	containerID  string
 	clientEnabled
 }
 
 // Start starts the container.
 func (c Container) Start() error {
-	return c.dockerClient.ContainerStart(c.ctx, c.containerBody.ID, c.startOptions)
+	return c.dockerClient.ContainerStart(c.ctx, c.containerID, c.startOptions)
 }
 
 // ExitCode returns the exit code of the container.
 // The container must be exited and exist, otherwise an error is returned.
 func (c Container) ExitCode() (int, error) {
-	inspectResult, inspectError := c.dockerClient.ContainerInspect(c.ctx, c.containerBody.ID)
+	inspectResult, inspectError := c.dockerClient.ContainerInspect(c.ctx, c.containerID)
 	if inspectError != nil {
 		return -1, fmt.Errorf("%w: %w", ErrInspectingContainer, inspectError)
 	}
@@ -88,7 +88,7 @@ func (b *ContainerBuilder) Build() (*Container, error) {
 
 	return &Container{
 		Name:          b.ContainerName,
-		containerBody: containerBody,
+		containerID:   containerBody.ID,
 		clientEnabled: b.clientEnabled,
 	}, nil
 }

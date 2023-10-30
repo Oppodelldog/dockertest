@@ -3,6 +3,7 @@ package dockertest
 import (
 	"context"
 	"fmt"
+	"github.com/docker/docker/api/types/container"
 	"sync"
 	"time"
 
@@ -110,7 +111,7 @@ func stopContainers(ctx context.Context, filterArgs filters.Args, dc *client.Cli
 
 		for _, testContainer := range containers {
 			go func(id string) {
-				go shutDownContainer(ctx, id, dc, timeout)
+				go shutDownContainer(ctx, id, dc, int(timeout))
 				wg.Done()
 			}(testContainer.ID)
 		}
@@ -121,8 +122,10 @@ func stopContainers(ctx context.Context, filterArgs filters.Args, dc *client.Cli
 	}
 }
 
-func shutDownContainer(ctx context.Context, containerID string, dc *client.Client, timeout time.Duration) {
-	_ = dc.ContainerStop(ctx, containerID, &timeout)
+func shutDownContainer(ctx context.Context, containerID string, dc *client.Client, timeout int) {
+	_ = dc.ContainerStop(ctx, containerID, container.StopOptions{
+		Timeout: &timeout,
+	})
 	waitForContainer(ctx, containerHasFadeAway, dc, containerID)
 }
 

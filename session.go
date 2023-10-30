@@ -87,8 +87,8 @@ func (dt *Session) NotifyContainerExit(container *Container, timeout time.Durati
 		defer cancel()
 		defer close(exitedCh)
 
-		if !waitForContainer(ctxTimeout, containerHasFadeAway, dt.dockerClient, container.containerBody.ID) {
-			err := dt.dockerClient.ContainerKill(context.Background(), container.containerBody.ID, "kill")
+		if !waitForContainer(ctxTimeout, containerHasFadeAway, dt.dockerClient, container.containerID) {
+			err := dt.dockerClient.ContainerKill(context.Background(), container.containerID, "kill")
 			if err != nil {
 				fmt.Println("Error while killing container,", err)
 			}
@@ -109,7 +109,7 @@ func (dt *Session) NotifyContainerHealthy(container *Container, timeout time.Dur
 		defer cancel()
 		defer close(healthErr)
 
-		if !waitForContainer(ctxTimeout, containerIsHealthy, dt.dockerClient, container.containerBody.ID) {
+		if !waitForContainer(ctxTimeout, containerIsHealthy, dt.dockerClient, container.containerID) {
 			healthErr <- fmt.Errorf("%w. timed out after %s", ErrContainerStartTimeout, timeout)
 		}
 		healthErr <- nil
@@ -128,7 +128,7 @@ func (dt *Session) NotifyContainerLogContains(container *Container, timeout time
 		defer cancel()
 		defer close(logContainsErr)
 
-		if err := waitForContainerLog(ctxTimeout, search, dt.dockerClient, container.containerBody.ID); err != nil {
+		if err := waitForContainerLog(ctxTimeout, search, dt.dockerClient, container.containerID); err != nil {
 			logContainsErr <- fmt.Errorf("error parsing log: %w", err)
 		}
 		logContainsErr <- nil
