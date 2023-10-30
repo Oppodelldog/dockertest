@@ -32,7 +32,6 @@ linters:
     - wsl
     - tagliatelle
     - makezero
-    - paralleltest
     - deadcode
     - unparam
     - unused
