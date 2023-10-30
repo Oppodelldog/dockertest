@@ -22,14 +22,18 @@ func getBaseURL() string {
 func main() {
 	http.DefaultClient.Timeout = clientTimeout
 	ctx, cancel := context.WithTimeout(context.Background(), clientTimeout)
+
 	defer cancel()
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, getBaseURL(), nil)
 	if err != nil {
-		os.Exit(1)
+		defer os.Exit(1)
 	}
 
 	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		defer os.Exit(1)
+	}
 
 	defer func() { _ = resp.Body.Close() }()
 
